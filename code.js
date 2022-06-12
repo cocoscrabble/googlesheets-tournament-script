@@ -8,41 +8,93 @@ function onOpen() {
     .addToUi();
 }
 
-function updateRound(round_dict, game_result) {
-  var round = game_result.round
-  if (round_dict[round] === undefined) {
-    round_dict[round] = []
+class Results {
+  constructor() {
+    this.results = []
+    this.players = {}
+    this.rounds = {}
   }
-  round_dict[round].push(game_result)
-}
 
-function getPlayerResults(player_dict, name) {
-  if (player_dict[name] === undefined) {
-    player_dict[name] = {
-      name: name,
-      wins: 0,
-      losses: 0,
-      ties: 0,
-      score: 0,
-      spread: 0,
+  updateRound(game_result) {
+    var round = game_result.round
+    if (this.rounds[round] === undefined) {
+      this.rounds[round] = []
+    }
+    this.rounds[round].push(game_result)
+  }
+
+  getPlayerResults(name) {
+    if (this.players[name] === undefined) {
+      this.players[name] = {
+        name: name,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        score: 0,
+        spread: 0,
+      }
+    }
+    return this.players[name];
+  }
+
+  updatePlayer(result) {
+    // Add the result of a single game to the player's results
+    var p = this.getPlayerResults(result.name)
+    var spread = result.score - result.opp_score
+    p.spread += spread;
+    if (spread > 0) {
+      p.wins += 1;
+    } else if (spread == 0) {
+      p.ties += 1;
+    } else {
+      p.losses += 1;
+    }
+    p.score = p.wins + 0.5 * p.ties;
+  }
+
+  processResults() {
+    for (const game_result of this.results) {
+      var winner = winnerResults(game_result);
+      var loser = loserResults(game_result);
+      this.updatePlayer(winner);
+      this.updatePlayer(loser);
+      this.updateRound(game_result);
     }
   }
-  return player_dict[name];
-}
 
-function updatePlayer(player_dict, result) {
-  // Add the result of a single game to the player's results
-  var p = getPlayerResults(player_dict, result.name)
-  var spread = result.score - result.opp_score
-  p.spread += spread;
-  if (spread > 0) {
-    p.wins += 1;
-  } else if (spread == 0) {
-    p.ties += 1;
-  } else {
-    p.losses += 1;
+  roundIds() {
+    return [0].concat(Object.keys(this.rounds).map(function (i) {
+      return parseInt(i);
+    }));
   }
-  p.score = p.wins + 0.5 * p.ties;
+
+  calculateRepeats(round) {
+    var repeats = {}
+    for (var r of this.results) {
+      if (r.round <= round) {
+        var key = [r.winner, r.loser].sort()
+        if (repeats[key] === undefined) {
+          repeats[key] = 0
+        }
+        repeats[key] += 1;
+      }
+    }
+    return repeats;
+  }
+
+  extractPairings(round) {
+    var pairings = [];
+    console.log("round:", round)
+    console.log(this.rounds[round])
+    for (const game_result of this.rounds[round]) {
+      var pairing = {
+        first: {name: game_result.winner},
+        second: {name: game_result.loser}
+      }
+      pairings.push(pairing);
+    }
+    return pairings
+  }
 }
 
 function winnerResults(game_result) {
@@ -62,16 +114,6 @@ function loserResults(game_result) {
     score: game_result.loser_score,
     opp: game_result.winner,
     opp_score: game_result.winner_score
-  }
-}
-
-function processResults(results, player_dict, round_dict) {
-  for (const game_result of results) {
-    var winner = winnerResults(game_result);
-    var loser = loserResults(game_result);
-    updatePlayer(player_dict, winner);
-    updatePlayer(player_dict, loser);
-    updateRound(round_dict, game_result);
   }
 }
 
@@ -178,49 +220,47 @@ function collectRoundPairings() {
 // -----------------------------------------------------
 // Filter data based on round
 
-function standingsAfterRound(results, seeding, round) {
+function standingsAfterRound(res, seeding, round) {
   console.log("standings at round:", round);
   // Calculate standings as of round <round>
-  var players = {};
   if (round == 0) {
-    return seeding.map(x => getPlayerResults(players, x.name))
+    return seeding.map(x => res.getPlayerResults(x.name))
   }
-  var rounds = {};
-  var subresults = results.filter(function (r) { return r.round <= round; });
-  processResults(subresults, players, rounds);
-  standings = Object.values(players);
+  res.results = res.results.filter(function (r) { return r.round <= round; });
+  res.processResults();
+  standings = Object.values(res.players);
   standings.sort(_player_standings_sort);
   return standings
 }
 
-function pairingsAfterRound(results, seeding, round_pairings, round) {
+function pairingsAfterRound(res, seeding, round_pairings, round) {
   var standings;
   console.log("round_pairings:", round)
   var pair = round_pairings[round + 1];
   if (pair.type == "K") {
-    standings = standingsAfterRound(results, seeding, round);
+    standings = standingsAfterRound(res, seeding, round);
     return pairKoth(standings)
   } else if (pair.type == "Q") {
-    standings = standingsAfterRound(results, seeding, round);
+    standings = standingsAfterRound(res, seeding, round);
     return pairQoth(standings)
   } else if (pair.type == "R") {
-    standings = standingsAfterRound(results, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, seeding, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
   } else if (pair.type.startsWith("QD")) {
-    standings = standingsAfterRound(results, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, seeding, pair.start - 1);
     return pairDistributedQuads(standings, pair.pos);
   } else if (pair.type.startsWith("QC")) {
-    standings = standingsAfterRound(results, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, seeding, pair.start - 1);
     return pairClusteredQuads(standings, pair.pos);
   } else if (pair.type.startsWith("QE")) {
-    standings = standingsAfterRound(results, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, seeding, pair.start - 1);
     return pairEvansQuads(standings, pair.pos);
   } else if (pair.type == "CH") {
     return pairCharlottesville(seeding, round);
   } else if (pair.type == "S") {
-    return pairSwiss(results, seeding, round);
+    return pairSwiss(res, seeding, round);
   } else if (pair.type == "ST") {
-    return pairSwiss(results, seeding, round - 1);
+    return pairSwiss(res, seeding, round - 1);
   }
 }
 
@@ -372,6 +412,8 @@ function pairDistributedQuads(standings, pos) {
     quads[quad].push(standings[i]);
   }
   maybeAddHex(quads, standings, max);
+  console.log("quads:", quads)
+  console.log("standings:", standings)
   return pairGroupsAtPosition(quads, pos);
 }
 
@@ -1318,7 +1360,7 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
 }
 
 function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, round, start_row) {
-  // console.log("pairings:", pairings);
+  console.log("pairings:", pairings);
   var out = pairings.map(function (x, index) {
     var table;
     /*
@@ -1333,6 +1375,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
       `Board ${table}`, //  table number
       x.first.name,
       x.second.name,
+      x.repeats
     ]
   })
   var ncols = out[0].length
@@ -1342,7 +1385,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", ""],
+    [round_header, "", "", ""],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1361,11 +1404,10 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName(input_sheet_label);
 
-  var players = {};
-  var rounds = {};
+  var res = new Results();
 
-  var results = collectResults(result_sheet);
-  processResults(results, players, rounds);
+  res.results = collectResults(result_sheet);
+  res.processResults();
 
   var entrants, seeding;
   [entrants, seeding] = collectEntrants();
@@ -1379,14 +1421,14 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 
   // Write out the standings
   var standings_sheet = sheet.getSheetByName(standings_sheet_label);
-  outputPlayerStandings(standings_sheet, players, entrants, ratings);
+  outputPlayerStandings(standings_sheet, res.players, entrants, ratings);
 
   // Write out the pairings
   var round_pairings = collectRoundPairings();
   console.log("round pairings:", round_pairings);
 
   // Find the last round we can pair
-  var round_ids = [0].concat(Object.keys(rounds).map(function (i) { return parseInt(i); }));
+  var round_ids = res.roundIds();
   console.log("round ids:", round_ids);
   var last_result = Math.max(...round_ids);
   var last_round = 0;
@@ -1403,7 +1445,17 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   var row = 2;
   for (var i = 0; i < last_round; i++) {
     console.log("writing pairings for round:", i);
-    var pairings = pairingsAfterRound(results, seeding, round_pairings, i);
+    var pairings;
+    if (i + 1 < round_ids.length) {
+      pairings = res.extractPairings(i + 1)
+    } else {
+      pairings = pairingsAfterRound(res, seeding, round_pairings, i);
+    }
+    var repeats = res.calculateRepeats(i + 1);
+    for (var p of pairings) {
+      var key = [p.first.name, p.second.name].sort();
+      p.repeats = repeats[key]
+    }
     outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, i, row);
     row += pairings.length + 2;
   }
