@@ -1,5 +1,5 @@
 function onOpen() {
-  // Get the Ui object.
+  // Get the UI object.
   var ui = SpreadsheetApp.getUi();
 
   // Create and add a named menu and its items to the menu bar.
@@ -32,6 +32,7 @@ class Results {
         ties: 0,
         score: 0,
         spread: 0,
+        starts: 0,
       }
     }
     return this.players[name];
@@ -50,6 +51,7 @@ class Results {
       p.losses += 1;
     }
     p.score = p.wins + 0.5 * p.ties;
+    p.starts += result.start;
   }
 
   processResults() {
@@ -88,8 +90,8 @@ class Results {
     console.log(this.rounds[round])
     for (const game_result of this.rounds[round]) {
       var pairing = {
-        first: {name: game_result.winner},
-        second: {name: game_result.loser}
+        first: {name: game_result.winner, start: game_result.winner_first},
+        second: {name: game_result.loser, start: !game_result.winner_first}
       }
       pairings.push(pairing);
     }
@@ -98,22 +100,26 @@ class Results {
 }
 
 function winnerResults(game_result) {
+  var start = game_result.winner_first ? 1 : 0;
   return {
     round: game_result.round,
     name: game_result.winner,
     score: game_result.winner_score,
     opp: game_result.loser,
-    opp_score: game_result.loser_score
+    opp_score: game_result.loser_score,
+    start: start,
   }
 }
 
 function loserResults(game_result) {
+  var start = game_result.winner_first ? 0 : 1;
   return {
     round: game_result.round,
     name: game_result.loser,
     score: game_result.loser_score,
     opp: game_result.winner,
-    opp_score: game_result.winner_score
+    opp_score: game_result.winner_score,
+    start: start,
   }
 }
 
@@ -134,8 +140,9 @@ function collectResults(result_sheet) {
       round: parseInt(entry[0]),
       winner: entry[1],
       winner_score: parseInt(entry[2]),
-      loser: entry[3],
-      loser_score: parseInt(entry[4])
+      winner_first: entry[3].toLowerCase() == "first" ? true : false,
+      loser: entry[4],
+      loser_score: parseInt(entry[5])
     }
     // make sure we have a valid round number
     if (!isNaN(game_result.round)) {
@@ -1371,11 +1378,14 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
     }
     */
     table = index + 1;
+    var first = x.first.start ? x.first.name : x.second.name;
+    var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
     return [
       `Board ${table}`, //  table number
       x.first.name,
       x.second.name,
-      x.repeats
+      rep,
+      `First: ${first}`
     ]
   })
   var ncols = out[0].length
@@ -1385,7 +1395,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", "", ""],
+    [round_header, "", "", "", ""],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1453,6 +1463,11 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
     }
     var repeats = res.calculateRepeats(i + 1);
     for (var p of pairings) {
+      var p1 = res.players[p.first.name];
+      var p2 = res.players[p.second.name];
+      var p1_first = p1.starts <= p2.starts;
+      p.first.start = p1_first;
+      p.second.start = !p1_first;
       var key = [p.first.name, p.second.name].sort();
       p.repeats = repeats[key]
     }
