@@ -1379,13 +1379,13 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
     */
     table = index + 1;
     var first = x.first.start ? x.first.name : x.second.name;
+    var second = x.first.start ? x.second.name : x.first.name;
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
     return [
-      `Board ${table}`, //  table number
-      x.first.name,
-      x.second.name,
+      table,
+      first,
+      second,
       rep,
-      `First: ${first}`
     ]
   })
   var ncols = out[0].length
@@ -1395,7 +1395,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", "", "", ""],
+    [round_header, "", "", ""],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1460,14 +1460,16 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
       pairings = res.extractPairings(i + 1)
     } else {
       pairings = pairingsAfterRound(res, seeding, round_pairings, i);
+      for (var p of pairings) {
+        var p1 = res.players[p.first.name];
+        var p2 = res.players[p.second.name];
+        var p1_first = p1.starts <= p2.starts;
+        p.first.start = p1_first;
+        p.second.start = !p1_first;
+      }
     }
     var repeats = res.calculateRepeats(i + 1);
     for (var p of pairings) {
-      var p1 = res.players[p.first.name];
-      var p2 = res.players[p.second.name];
-      var p1_first = p1.starts <= p2.starts;
-      p.first.start = p1_first;
-      p.second.start = !p1_first;
       var key = [p.first.name, p.second.name].sort();
       p.repeats = repeats[key]
     }
