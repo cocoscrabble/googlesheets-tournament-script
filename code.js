@@ -140,9 +140,9 @@ function collectResults(result_sheet) {
       round: parseInt(entry[0]),
       winner: entry[1],
       winner_score: parseInt(entry[2]),
-      winner_first: entry[3].toLowerCase() == "first" ? true : false,
-      loser: entry[4],
-      loser_score: parseInt(entry[5])
+      loser: entry[3],
+      loser_score: parseInt(entry[4]),
+      winner_first: entry[5].toLowerCase() == "first" ? true : false,
     }
     // make sure we have a valid round number
     if (!isNaN(game_result.round)) {
