@@ -99,6 +99,14 @@ class Results {
   }
 }
 
+class Entrants {
+  constructor(entrants, seeding, tables) {
+    this.entrants = entrants
+    this.seeding = seeding
+    this.tables = tables
+  }
+}
+
 function winnerResults(game_result) {
   var start = game_result.winner_first ? 1 : 0;
   return {
@@ -155,24 +163,31 @@ function collectResults(result_sheet) {
 function collectEntrants() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName("Entrants");
-  var result_range = result_sheet.getRange("A2:B");
+  var result_range = result_sheet.getRange("A2:D");
   var results = result_range.getValues();
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
   var entrants = {}
   var seeding = []
+  var tables = {}
   for (row = 0; row < last_row - 1; row++) {
     // col B = entry[0], C = 1, ...
     var entry = results[row];
     var name = entry[0];
     var full_name = entry[0];
     var rating = parseInt(entry[1]);
+    var table = entry[3];
     entrants[name] = full_name;
     seeding.push({ name: name, rating: rating });
+    if (table != "") {
+      tables[name] = parseInt(table);
+    }
   }
   seeding.sort(function (i, j) { return j.rating - i.rating });
   console.log("Seeding:", seeding);
   console.log("Entrants:", entrants);
-  return [entrants, seeding];
+  console.log("Tables:", tables);
+  var ret = new Entrants(entrants, seeding, tables);
+  return ret;
 }
 
 function collectRoundPairings() {
@@ -227,11 +242,11 @@ function collectRoundPairings() {
 // -----------------------------------------------------
 // Filter data based on round
 
-function standingsAfterRound(res, seeding, round) {
+function standingsAfterRound(res, entrants, round) {
   console.log("standings at round:", round);
   // Calculate standings as of round <round>
   if (round == 0) {
-    return seeding.map(x => res.getPlayerResults(x.name))
+    return entrants.seeding.map(x => res.getPlayerResults(x.name))
   }
   res.results = res.results.filter(function (r) { return r.round <= round; });
   res.processResults();
@@ -240,37 +255,55 @@ function standingsAfterRound(res, seeding, round) {
   return standings
 }
 
-function pairingsAfterRound(res, seeding, round_pairings, round) {
+function getCurrentEntrantsRanking(entrants, standings) {
+  // Sort by wins and spread
+  var ids = Object.keys(entrants.entrants);
+  // Get standings only for people in current entrants list
+  ps = standings.filter(function(s) { return s.id in entrants.entrants });
+  // Add standings for new entrants with no results
+  newcomers = []
+  var paired = new Set(ps.map(function(p) { return p.id }));
+  for (const e of Object.values(entrants.entrants)) {
+    if (!paired.has(e.id)) {
+      newcomers.push({id: e.id, name: e.name, rating: e.rating});
+    }
+  }
+  shuffleArray(newcomers);
+  all = ps.concat(newcomers);
+  maybeAddBye(all);
+  return all
+}
+
+function pairingsAfterRound(res, entrants, round_pairings, round) {
   var standings;
   console.log("round_pairings:", round)
   var pair = round_pairings[round + 1];
   if (pair.type == "K") {
-    standings = standingsAfterRound(res, seeding, round);
+    standings = standingsAfterRound(res, entrants, round);
     return pairKoth(standings)
   } else if (pair.type == "Q") {
-    standings = standingsAfterRound(res, seeding, round);
+    standings = standingsAfterRound(res, entrants, round);
     return pairQoth(standings)
   } else if (pair.type == "R") {
-    standings = standingsAfterRound(res, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
   } else if (pair.type.startsWith("QD")) {
-    standings = standingsAfterRound(res, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairDistributedQuads(standings, pair.pos);
   } else if (pair.type.startsWith("QC")) {
-    standings = standingsAfterRound(res, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairClusteredQuads(standings, pair.pos);
   } else if (pair.type.startsWith("QE")) {
-    standings = standingsAfterRound(res, seeding, pair.start - 1);
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairEvansQuads(standings, pair.pos);
   } else if (pair.type == "CH") {
-    return pairCharlottesville(seeding, round);
+    return pairCharlottesville(entrants, round);
   } else if (pair.type == "S") {
-    return pairSwiss(res, seeding, round);
+    return pairSwiss(res, entrants, round);
   } else if (pair.type == "ST") {
-    return pairSwiss(res, seeding, round - 1);
+    return pairSwiss(res, entrants, round - 1);
   }
 }
-
 // -----------------------------------------------------
 // Round robin pairing.
 // See https://github.com/domino14/liwords/ for strategy
@@ -465,7 +498,7 @@ function pairEvansQuads(standings, pos) {
 // Group 2: 2, 3, 6, 7, 10, 11, 14, 15, 18
 // For the first 9 rounds, you play a round robin against all the people in the *other* group.
 
-function pairCharlottesville(seeding, round) {
+function pairCharlottesville(entrants, round) {
   var g1 = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20];
   var g2 = [2, 3, 6, 7, 10, 11, 14, 15, 18, 19];
   // reverse group 2 so the top player plays the second player last
@@ -479,7 +512,7 @@ function pairCharlottesville(seeding, round) {
   for (var i = 0; i < 10; i += 1) {
     p1 = g1[i] - 1;
     p2 = rotated[i] - 1;
-    pairings.push({ first: seeding[p1], second: seeding[p2] });
+    pairings.push({ first: entrants.seeding[p1], second: entrants.seeding[p2] });
   }
   return pairings
 }
@@ -1136,7 +1169,7 @@ function pIndex(arr, idx) {
 
 function calculateRepeats(results, round) {
   var repeats = {}
-  for (var r of results) {
+  for (var r of results.results) {
     if (r.round <= round) {
       var key = [r.winner, r.loser].sort()
       if (repeats[key] === undefined) {
@@ -1148,8 +1181,8 @@ function calculateRepeats(results, round) {
   return repeats;
 }
 
-function calculateScoreGroups(results, seeding, round) {
-  var players = standingsAfterRound(results, seeding, round);
+function calculateScoreGroups(results, entrants, round) {
+  var players = standingsAfterRound(results, entrants, round);
   console.log("players:", players)
   var groups = []
   for (var p of players) {
@@ -1269,14 +1302,14 @@ function pairCandidates(bracket) {
   return pairings
 }
 
-function pairSwiss(results, seeding, round) {
+function pairSwiss(results, entrants, round) {
   console.log("swiss pairing based on round", round)
   if (round <= 0) {
-    return pairSwissInitial(seeding);
+    return pairSwissInitial(entrants.seeding);
   }
   var repeats = calculateRepeats(results, round);
   console.log("repeats for round", round, repeats)
-  var groups = calculateScoreGroups(results, seeding, round);
+  var groups = calculateScoreGroups(results, entrants, round);
   console.log("groups:", groups)
   var candidates;
   var nrep = 1;
@@ -1368,16 +1401,24 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
 
 function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, round, start_row) {
   console.log("pairings:", pairings);
+  var vtable = 1;
+  var used = new Set();
+  for (var v of Object.values(entrants.tables)) {
+    used.add(v)
+  }
   var out = pairings.map(function (x, index) {
     var table;
-    /*
-    if (index == 0) {
-      table = 1;
+    if (x.first.name in entrants.tables) {
+      table = entrants.tables[x.first.name];
+    } else if (x.second.name in entrants.tables) {
+      table = entrants.tables[x.second.name];
     } else {
-      table = Math.floor((index - 1) / 2) + 2
+      while (used.has(vtable)) {
+        vtable++;
+      }
+      table = vtable;
+      vtable++;
     }
-    */
-    table = index + 1;
     var first = x.first.start ? x.first.name : x.second.name;
     var second = x.first.start ? x.second.name : x.first.name;
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
@@ -1388,6 +1429,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
       rep,
     ]
   })
+  out = out.sort();
   var ncols = out[0].length
   var text_pairings = []
   var round_header = "ROUND " + (round + 1);
@@ -1419,10 +1461,9 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   res.results = collectResults(result_sheet);
   res.processResults();
 
-  var entrants, seeding;
-  [entrants, seeding] = collectEntrants();
+  var entrants = collectEntrants();
   var ratings = {};
-  for (var x of seeding) {
+  for (var x of entrants.seeding) {
     ratings[x.name] = x.rating
   }
 
@@ -1453,17 +1494,35 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   var pairing_sheet = sheet.getSheetByName(pairing_sheet_label);
   var text_pairing_sheet = sheet.getSheetByName(text_pairing_sheet_label);
   var row = 2;
+  var rr_starts = {}
   for (var i = 0; i < last_round; i++) {
-    console.log("writing pairings for round:", i);
+    var rp = round_pairings[i + 1];
+    console.log("writing pairings for round:", i, rp);
     var pairings;
     if (i + 1 < round_ids.length) {
       pairings = res.extractPairings(i + 1)
     } else {
-      pairings = pairingsAfterRound(res, seeding, round_pairings, i);
+      pairings = pairingsAfterRound(res, entrants, round_pairings, i);
       for (var p of pairings) {
-        var p1 = res.players[p.first.name];
-        var p2 = res.players[p.second.name];
-        var p1_first = p1.starts <= p2.starts;
+        var p1 = p.first.name;
+        var p2 = p.second.name;
+        var p1_first;
+        if (rp.type == "R") {
+          if (rr_starts[p1] === undefined) {
+            rr_starts[p1] = 0
+          }
+          if (rr_starts[p2] === undefined) {
+            rr_starts[p2] = 0
+          }
+          p1_first = rr_starts[p1] <= rr_starts[p2];
+          if (p1_first) {
+            rr_starts[p1]++;
+          } else {
+            rr_starts[p2]++;
+          }
+        } else {
+          p1_first = res.players[p1].starts <= res.players[p2].starts;
+        }
         p.first.start = p1_first;
         p.second.start = !p1_first;
       }
