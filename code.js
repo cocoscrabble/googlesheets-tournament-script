@@ -1514,14 +1514,28 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
           if (rr_starts[p2] === undefined) {
             rr_starts[p2] = 0
           }
-          p1_first = rr_starts[p1] <= rr_starts[p2];
+          // Always assign 'bye' the first otherwise the player playing the bye
+          // is assigned an extra first andthereby slightly penalised.
+          if (p1.toLowerCase() === "bye") {
+            p1_first = true;
+          } else if (p2.toLowerCase() === "bye") {
+            p1_first = false;
+          } else {
+            p1_first = rr_starts[p1] <= rr_starts[p2];
+          }
           if (p1_first) {
             rr_starts[p1]++;
           } else {
             rr_starts[p2]++;
           }
         } else {
-          p1_first = res.players[p1].starts <= res.players[p2].starts;
+          if (p1.toLowerCase() === "bye") {
+            p1_first = true;
+          } else if (p2.toLowerCase() === "bye") {
+            p1_first = false;
+          } else {
+            p1_first = res.players[p1].starts <= res.players[p2].starts;
+          }
         }
         p.first.start = p1_first;
         p.second.start = !p1_first;
