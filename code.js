@@ -152,8 +152,8 @@ function collectResults(result_sheet) {
       loser_score: parseInt(entry[4]),
       winner_first: entry[5].toLowerCase() == "first" ? true : false,
     }
-    // make sure we have a valid round number
-    if (!isNaN(game_result.round)) {
+    // make sure we have a valid round number, and ignore "test player"
+    if (!isNaN(game_result.round) && (game_result.winner != "Test Player")) {
       out.push(game_result);
     }
   }
@@ -1377,7 +1377,7 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
   standings = standings.filter(x => x.name.toLowerCase() != "bye");
   standings = standings.filter(x => !x.name.includes("bye"));
   var out = standings.map(function (x, index) {
-    var full_name = entrants[x.name];
+    var full_name = entrants.entrants[x.name];
     var rating = ratings[x.name]
     return [
       (index + 1) + ".",
