@@ -1494,6 +1494,11 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 
   var pairing_sheet = sheet.getSheetByName(pairing_sheet_label);
   var text_pairing_sheet = sheet.getSheetByName(text_pairing_sheet_label);
+
+  // Clear pairing sheets
+  pairing_sheet.clearContents();
+  text_pairing_sheet.clearContents();
+
   var row = 2;
   var rr_starts = {}
   for (var i = 0; i < last_round; i++) {
