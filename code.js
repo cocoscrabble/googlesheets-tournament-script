@@ -163,7 +163,7 @@ function collectResults(result_sheet) {
 function collectEntrants() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName("Entrants");
-  var result_range = result_sheet.getRange("A2:D");
+  var result_range = result_sheet.getRange("A2:E");
   var results = result_range.getValues();
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
   var entrants = {}
@@ -176,13 +176,14 @@ function collectEntrants() {
     var full_name = entry[0];
     var rating = parseInt(entry[1]);
     var table = entry[3];
-    entrants[name] = full_name;
-    seeding.push({ name: name, rating: rating });
+    var seed = parseInt(entry[4]);
+    entrants[name] = full_name + ` (#${seed})`;
+    seeding.push({ name: name, rating: rating, seed: seed });
     if (table != "") {
       tables[name] = parseInt(table);
     }
   }
-  seeding.sort(function (i, j) { return j.rating - i.rating });
+  seeding.sort(function (i, j) { return i.seed - j.seed });
   console.log("Seeding:", seeding);
   console.log("Entrants:", entrants);
   console.log("Tables:", tables);
@@ -1424,8 +1425,8 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
     return [
       table,
-      first,
-      second,
+      entrants.entrants[first],
+      entrants.entrants[second],
       rep,
     ]
   })
