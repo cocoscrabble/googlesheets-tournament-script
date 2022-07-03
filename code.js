@@ -500,8 +500,15 @@ function pairEvansQuads(standings, pos) {
 // For the first 9 rounds, you play a round robin against all the people in the *other* group.
 
 function pairCharlottesville(entrants, round) {
-  var g1 = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20];
-  var g2 = [2, 3, 6, 7, 10, 11, 14, 15, 18, 19];
+  var g1 = [];
+  var g2 = [];
+  for (var i = 1; i <= entrants.seeding.length; i += 1) {
+    if (i % 4 == 0 || i % 4 == 1) {
+      g1.push(i);
+    } else {
+      g2.push(i);
+    }
+  }
   // reverse group 2 so the top player plays the second player last
   g2.reverse();
   // rotate group 2 one place per round and pair up with group 1
@@ -510,7 +517,7 @@ function pairCharlottesville(entrants, round) {
   var r2 = g2.slice(r);
   var rotated = r2.concat(r1);
   var pairings = [];
-  for (var i = 0; i < 10; i += 1) {
+  for (var i = 0; i < g1.length; i += 1) {
     p1 = g1[i] - 1;
     p2 = rotated[i] - 1;
     pairings.push({ first: entrants.seeding[p1], second: entrants.seeding[p2] });
@@ -1513,7 +1520,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
         var p1 = p.first.name;
         var p2 = p.second.name;
         var p1_first;
-        if (rp.type == "R") {
+        if (rp.type == "R" || rp.type == "CH") {
           if (rr_starts[p1] === undefined) {
             rr_starts[p1] = 0
           }
