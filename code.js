@@ -1429,7 +1429,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
       rep,
     ]
   })
-  out = out.sort();
+  out = out.sort((a, b) => parseInt(a) - parseInt(b));
   var ncols = out[0].length
   var text_pairings = []
   var round_header = "ROUND " + (round + 1);
