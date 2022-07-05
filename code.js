@@ -105,6 +105,14 @@ class Entrants {
     this.seeding = seeding
     this.tables = tables
   }
+
+  addEntrant(e) {
+    this.entrants[e.name] = e.full_name;
+    this.seeding.push({ name: e.name, rating: e.rating, seed: e.seed });
+    if (e.table != "") {
+      this.tables[e.name] = parseInt(e.table);
+    }
+  }
 }
 
 function winnerResults(game_result) {
@@ -160,35 +168,43 @@ function collectResults(result_sheet) {
   return out;
 }
 
+function entrantFromRow(entry) {
+  // col B = entry[0], C = 1, ...
+  var name = entry[0];
+  var rating = parseInt(entry[1]);
+  var table = entry[3];
+  var seed = parseInt(entry[4]);
+  var full_name = name + ` (#${seed})`;
+  if (isNaN(rating)) {
+    rating = 0;
+  }
+  return {name: name, full_name: full_name, rating: rating, table: table, seed: seed}
+}
+
+function makeEntrants(rows) {
+  var entrants = {}
+  var seeding = []
+  var tables = {}
+  var ret = new Entrants(entrants, seeding, tables);
+  for (var entry of rows) {
+    ret.addEntrant(entrantFromRow(entry));
+  }
+  ret.seeding.sort(function (i, j) { return i.seed - j.seed });
+  return ret;
+}
+
 function collectEntrants() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName("Entrants");
   var result_range = result_sheet.getRange("A2:E");
   var results = result_range.getValues();
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var entrants = {}
-  var seeding = []
-  var tables = {}
-  for (row = 0; row < last_row - 1; row++) {
-    // col B = entry[0], C = 1, ...
-    var entry = results[row];
-    var name = entry[0];
-    var full_name = entry[0];
-    var rating = parseInt(entry[1]);
-    var table = entry[3];
-    var seed = parseInt(entry[4]);
-    entrants[name] = full_name + ` (#${seed})`;
-    seeding.push({ name: name, rating: rating, seed: seed });
-    if (table != "") {
-      tables[name] = parseInt(table);
-    }
-  }
-  seeding.sort(function (i, j) { return i.seed - j.seed });
-  console.log("Seeding:", seeding);
-  console.log("Entrants:", entrants);
-  console.log("Tables:", tables);
-  var ret = new Entrants(entrants, seeding, tables);
-  return ret;
+  var data = results.slice(0, last_row - 1);
+  var entrants = makeEntrants(data);
+  console.log("Seeding:", entrants.seeding);
+  console.log("Entrants:", entrants.entrants);
+  console.log("Tables:", entrants.tables);
+  return entrants;
 }
 
 function collectRoundPairings() {
@@ -1567,3 +1583,5 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings");
 }
+
+// export { makeEntrants };
