@@ -54,13 +54,23 @@ class Results {
     p.starts += result.start;
   }
 
+  addGeneratedResult(game_result) {
+    // Used for simulations
+    this.results.push(game_result);
+    this.processResult(game_result);
+  }
+  
+  processResult(game_result) {
+    var winner = winnerResults(game_result);
+    var loser = loserResults(game_result);
+    this.updatePlayer(winner);
+    this.updatePlayer(loser);
+    this.updateRound(game_result);
+  }
+
   processResults() {
     for (const game_result of this.results) {
-      var winner = winnerResults(game_result);
-      var loser = loserResults(game_result);
-      this.updatePlayer(winner);
-      this.updatePlayer(loser);
-      this.updateRound(game_result);
+      this.processResult(game_result);
     }
   }
 
@@ -142,16 +152,11 @@ function loserResults(game_result) {
 // -----------------------------------------------------
 // Read data from spreadsheet
 
-function collectResults(result_sheet) {
-  // Get the results range within the result sheet
-  var result_range = result_sheet.getRange("B2:H");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("B2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+function makeResults(rows) {
   // Convert each row into a GameResult object
   var out = []
-  for (row = 0; row < last_row - 1; row++) {
+  for (var entry of rows) {
     // col B = entry[0], C = 1, ...
-    var entry = results[row]
     var game_result = {
       round: parseInt(entry[0]),
       winner: entry[1],
@@ -165,7 +170,19 @@ function collectResults(result_sheet) {
       out.push(game_result);
     }
   }
-  return out;
+  var res = new Results();
+  res.results = out;
+  res.processResults();
+  return res;
+}
+
+function collectResults(result_sheet) {
+  // Get the results range within the result sheet
+  var result_range = result_sheet.getRange("B2:H");
+  var results = result_range.getValues();
+  var last_row = result_sheet.getRange("B2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+  var data = results.slice(0, last_row - 1);
+  return makeResults(data);
 }
 
 function entrantFromRow(entry) {
@@ -271,7 +288,7 @@ function standingsAfterRound(res, entrants, round) {
   }
   res.results = res.results.filter(function (r) { return r.round <= round; });
   res.processResults();
-  standings = Object.values(res.players);
+  var standings = Object.values(res.players);
   standings.sort(_player_standings_sort);
   return standings
 }
@@ -1484,10 +1501,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName(input_sheet_label);
 
-  var res = new Results();
-
-  res.results = collectResults(result_sheet);
-  res.processResults();
+  var res = collectResults(result_sheet);
 
   var entrants = collectEntrants();
   var ratings = {};
@@ -1588,4 +1602,7 @@ function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings");
 }
 
-// export { makeEntrants, makeRoundPairings };
+export {
+  makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
+  standingsAfterRound
+};
