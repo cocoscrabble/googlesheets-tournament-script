@@ -286,9 +286,10 @@ function standingsAfterRound(res, entrants, round) {
   if (round == 0) {
     return entrants.seeding.map(x => res.getPlayerResults(x.name))
   }
-  res.results = res.results.filter(function (r) { return r.round <= round; });
-  res.processResults();
-  var standings = Object.values(res.players);
+  var tmp_res = new Results();
+  tmp_res.results = res.results.filter(function (r) { return r.round <= round; });
+  tmp_res.processResults();
+  var standings = Object.values(tmp_res.players);
   standings.sort(_player_standings_sort);
   return standings
 }
