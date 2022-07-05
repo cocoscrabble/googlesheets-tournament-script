@@ -207,18 +207,12 @@ function collectEntrants() {
   return entrants;
 }
 
-function collectRoundPairings() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("RoundPairing");
-  var result_range = result_sheet.getRange("A2:B");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+function makeRoundPairings(rows) {
   var quads = {}
   var round_robins = {}
   var rounds = []
-  for (row = 0; row < last_row - 1; row++) {
+  for (var entry of rows) {
     // col A = entry[0], B = 1
-    var entry = results[row];
     var round = parseInt(entry[0]);
     var pairing = entry[1];
     if (pairing.startsWith("Q")) {
@@ -254,6 +248,16 @@ function collectRoundPairings() {
     }
   }
   return rounds;
+}
+
+function collectRoundPairings() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var result_sheet = sheet.getSheetByName("RoundPairing");
+  var result_range = result_sheet.getRange("A2:B");
+  var results = result_range.getValues();
+  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+  var data = results.slice(0, last_row - 1);
+  return makeRoundPairings(data);
 }
 
 // -----------------------------------------------------
@@ -1584,4 +1588,4 @@ function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings");
 }
 
-// export { makeEntrants };
+// export { makeEntrants, makeRoundPairings };
