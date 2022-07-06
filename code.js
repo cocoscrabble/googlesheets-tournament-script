@@ -110,10 +110,11 @@ class Results {
 }
 
 class Entrants {
-  constructor(entrants, seeding, tables) {
+  constructor(entrants, seeding, tables, fixed_pairings) {
     this.entrants = entrants
     this.seeding = seeding
     this.tables = tables
+    this.fixed_pairings = fixed_pairings
   }
 
   addEntrant(e) {
@@ -202,7 +203,8 @@ function makeEntrants(rows) {
   var entrants = {}
   var seeding = []
   var tables = {}
-  var ret = new Entrants(entrants, seeding, tables);
+  var fixed_pairings = {}
+  var ret = new Entrants(entrants, seeding, tables, fixed_pairings);
   for (var entry of rows) {
     ret.addEntrant(entrantFromRow(entry));
   }
@@ -277,6 +279,38 @@ function collectRoundPairings() {
   return makeRoundPairings(data);
 }
 
+function parseFixedPairing(p) {
+  if (p.startsWith("#")) {
+    return { standing: parseInt(p.slice(1)) };
+  } else {
+    return { name: p };
+  }
+}
+
+function makeFixedPairings(rows) {
+  var fp = {};
+  for (var entry of rows) {
+    var round = parseInt(entry[0]);
+    var p1 = parseFixedPairing(entry[1]);
+    var p2 = parseFixedPairing(entry[2]);
+    if (fp[round] === undefined) {
+      fp[round] = [];
+    }
+    fp[round].push({first: p1, second: p2})
+  }
+  return fp;
+}
+
+function collectFixedPairings() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var result_sheet = sheet.getSheetByName("FixedPairing");
+  var result_range = result_sheet.getRange("A2:C");
+  var results = result_range.getValues();
+  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+  var data = results.slice(0, last_row - 1);
+  return makeFixedPairings(data);
+}
+
 // -----------------------------------------------------
 // Filter data based on round
 
@@ -292,6 +326,39 @@ function standingsAfterRound(res, entrants, round) {
   var standings = Object.values(tmp_res.players);
   standings.sort(_player_standings_sort);
   return standings
+}
+
+function getFixedPairing(standings, p) {
+  if (p.standing !== undefined) {
+    return standings[p.standing - 1].name;
+  } else {
+    return p.name;
+  }
+}
+
+function removeFixedPairings(standings, entrants, round) {
+  var fp = entrants.fixed_pairings[round];
+  console.log("standings:", standings);
+  console.log("round:", round);
+  console.log("fp:", fp);
+  if (fp === undefined) {
+    return standings;
+  }
+  var remove = {};
+  var fixed = [];
+  for (var pair of fp) {
+    var p1 = getFixedPairing(standings, pair.first);
+    var p2 = getFixedPairing(standings, pair.second);
+    if (p1 != p2) {
+      remove[p1] = p2;
+      remove[p2] = p1;
+      fixed.push({first: {name: p1}, second: {name: p2}});
+    }
+  }
+  console.log("pairing:", remove);
+  standings = standings.filter(p => remove[p.name] === undefined);
+  console.log("new standings:", standings);
+  return [standings, fixed];
 }
 
 function getCurrentEntrantsRanking(entrants, standings) {
@@ -1227,11 +1294,9 @@ function calculateRepeats(results, round) {
   return repeats;
 }
 
-function calculateScoreGroups(results, entrants, round) {
-  var players = standingsAfterRound(results, entrants, round);
-  console.log("players:", players)
+function calculateScoreGroups(standings) {
   var groups = []
-  for (var p of players) {
+  for (var p of standings) {
     var k = p.wins
     if (groups[k] === undefined) {
       groups[k] = []
@@ -1355,7 +1420,11 @@ function pairSwiss(results, entrants, round) {
   }
   var repeats = calculateRepeats(results, round);
   console.log("repeats for round", round, repeats)
-  var groups = calculateScoreGroups(results, entrants, round);
+  var players = standingsAfterRound(results, entrants, round);
+  console.log("players:", players)
+  var fixed;
+  [players, fixed] = removeFixedPairings(players, entrants, round + 1);
+  var groups = calculateScoreGroups(players);
   console.log("groups:", groups)
   var candidates;
   var nrep = 1;
@@ -1393,6 +1462,7 @@ function pairSwiss(results, entrants, round) {
       }
     }
   }
+  paired.push(fixed);
   var out = []
   for (const group of paired) {
     for (var p of group) {
@@ -1509,6 +1579,8 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   for (var x of entrants.seeding) {
     ratings[x.name] = x.rating
   }
+  var fp = collectFixedPairings();
+  entrants.fixed_pairings = fp;
 
   console.log("processed results");
 
@@ -1603,7 +1675,7 @@ function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings");
 }
 
-export {
-  makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
-  standingsAfterRound
-};
+// export {
+//   makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
+//   standingsAfterRound
+// };
