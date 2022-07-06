@@ -325,6 +325,7 @@ function standingsAfterRound(res, entrants, round) {
   tmp_res.processResults();
   var standings = Object.values(tmp_res.players);
   standings.sort(_player_standings_sort);
+  standings = getCurrentEntrantsRanking(res, entrants, standings);
   return standings
 }
 
@@ -350,6 +351,7 @@ function removeFixedPairings(standings, entrants, round) {
     var p1 = getFixedPairing(standings, pair.first);
     var p2 = getFixedPairing(standings, pair.second);
     if (p1 != p2) {
+      [p1, p2] = [p1, p2].sort((a, b) => (a.name < b.name) ? 1 : -1);
       remove[p1] = p2;
       remove[p2] = p1;
       fixed.push({first: {name: p1}, second: {name: p2}});
@@ -361,22 +363,15 @@ function removeFixedPairings(standings, entrants, round) {
   return [standings, fixed];
 }
 
-function getCurrentEntrantsRanking(entrants, standings) {
-  // Sort by wins and spread
-  var ids = Object.keys(entrants.entrants);
+function getCurrentEntrantsRanking(res, entrants, standings) {
   // Get standings only for people in current entrants list
-  ps = standings.filter(function(s) { return s.id in entrants.entrants });
+  var ps = standings.filter(p => p.name in entrants.entrants);
   // Add standings for new entrants with no results
-  newcomers = []
-  var paired = new Set(ps.map(function(p) { return p.id }));
-  for (const e of Object.values(entrants.entrants)) {
-    if (!paired.has(e.id)) {
-      newcomers.push({id: e.id, name: e.name, rating: e.rating});
-    }
-  }
-  shuffleArray(newcomers);
+  var existing = ps.map(p => p.name);
+  var newcomers = entrants.seeding.filter(p => existing.indexOf(p.name) == -1);
+  newcomers = newcomers.map(p => res.getPlayerResults(p.name));
+  console.log("newcomers:", newcomers);
   all = ps.concat(newcomers);
-  maybeAddBye(all);
   return all
 }
 
@@ -386,10 +381,10 @@ function pairingsAfterRound(res, entrants, round_pairings, round) {
   var pair = round_pairings[round + 1];
   if (pair.type == "K") {
     standings = standingsAfterRound(res, entrants, round);
-    return pairKoth(standings)
+    return pairKoth(standings, entrants, round)
   } else if (pair.type == "Q") {
     standings = standingsAfterRound(res, entrants, round);
-    return pairQoth(standings)
+    return pairQoth(standings, entrants, round)
   } else if (pair.type == "R") {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
@@ -442,11 +437,16 @@ function pairRoundRobin(standings, pos) {
 // -----------------------------------------------------
 // King of the hill pairing.
 
-function pairKoth(standings) {
+function pairKoth(standings, entrants, round) {
   // Sort by wins and spread
+  var fixed
+  [standings, fixed] = removeFixedPairings(standings, entrants, round + 1);
   var pairings = [];
   for (var i = 0; i < standings.length; i += 2) {
     pairings.push({ first: standings[i], second: standings[i + 1] })
+  }
+  for (var p of fixed) {
+    pairings.push(p);
   }
   return pairings
 }
@@ -454,8 +454,10 @@ function pairKoth(standings) {
 // -----------------------------------------------------
 // Queen of the hill pairing.
 
-function pairQoth(standings) {
+function pairQoth(standings, entrants, round) {
   // Sort by wins and spread
+  var fixed
+  [standings, fixed] = removeFixedPairings(standings, entrants, round + 1);
   var pairings = [];
   var n = standings.length;
   if (n % 4 == 2) {
@@ -473,6 +475,9 @@ function pairQoth(standings) {
       pairings.push({ first: standings[i], second: standings[i + 2] })
       pairings.push({ first: standings[i + 1], second: standings[i + 3] })
     }
+  }
+  for (var p of fixed) {
+    pairings.push(p);
   }
   return pairings
 }
@@ -1493,7 +1498,7 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
   standings = standings.filter(x => x.name.toLowerCase() != "bye");
   standings = standings.filter(x => !x.name.includes("bye"));
   var out = standings.map(function (x, index) {
-    var full_name = entrants.entrants[x.name];
+    var full_name = entrants.entrants[x.name] || x.name;
     var rating = ratings[x.name]
     return [
       (index + 1) + ".",
@@ -1540,8 +1545,8 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
     return [
       table,
-      entrants.entrants[first],
-      entrants.entrants[second],
+      entrants.entrants[first] || first,
+      entrants.entrants[second] || second,
       rep,
     ]
   })
