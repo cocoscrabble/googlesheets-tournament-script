@@ -343,7 +343,7 @@ function removeFixedPairings(standings, entrants, round) {
   console.log("round:", round);
   console.log("fp:", fp);
   if (fp === undefined) {
-    return standings;
+    return [standings, []];
   }
   var remove = {};
   var fixed = [];
