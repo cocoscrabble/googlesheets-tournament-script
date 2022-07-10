@@ -290,6 +290,8 @@ function parseFixedPairing(p) {
   if (p.startsWith("#")) {
     return { standing: parseInt(p.slice(1)) };
   } else {
+    const regex = /\s\(.*$/;
+    p = p.replace(regex, '');
     return { name: p };
   }
 }
