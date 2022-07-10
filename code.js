@@ -96,7 +96,7 @@ class Results {
 
   extractPairings(round) {
     var pairings = [];
-    console.log("round:", round)
+    console.log("extracting pairings for round:", round)
     console.log(this.rounds[round])
     for (const game_result of this.rounds[round]) {
       var pairing = {
@@ -123,6 +123,27 @@ class Entrants {
     if (e.table != "") {
       this.tables[e.name] = parseInt(e.table);
     }
+  }
+}
+
+class Repeats {
+  constructor() {
+    this.matches = {}
+  }
+
+  add(name1, name2) {
+    // Add a pairing and return the current count
+    var key = [name1, name2].sort();
+    if (this.matches[key] === undefined) {
+      this.matches[key] = 0;
+    }
+    this.matches[key]++;
+    return this.matches[key];
+  }
+
+  get(name1, name2) {
+    var key = [name1, name2].sort();
+    return this.matches[key] || 0;
   }
 }
 
@@ -339,7 +360,6 @@ function getFixedPairing(standings, p) {
 
 function removeFixedPairings(standings, entrants, round) {
   var fp = entrants.fixed_pairings[round];
-  console.log("standings:", standings);
   console.log("round:", round);
   console.log("fp:", fp);
   if (fp === undefined) {
@@ -351,15 +371,17 @@ function removeFixedPairings(standings, entrants, round) {
     var p1 = getFixedPairing(standings, pair.first);
     var p2 = getFixedPairing(standings, pair.second);
     if (p1 != p2) {
-      [p1, p2] = [p1, p2].sort((a, b) => (a.name < b.name) ? 1 : -1);
+      console.log("p1, p2:", [p1, p2]);
+      [p1, p2] = [p1, p2].sort();
+      console.log("sorted:", [p1, p2]);
       remove[p1] = p2;
       remove[p2] = p1;
       fixed.push({first: {name: p1}, second: {name: p2}});
     }
   }
-  console.log("pairing:", remove);
+  //console.log("pairing:", remove);
   standings = standings.filter(p => remove[p.name] === undefined);
-  console.log("new standings:", standings);
+  //console.log("new standings:", standings);
   return [standings, fixed];
 }
 
@@ -375,7 +397,7 @@ function getCurrentEntrantsRanking(res, entrants, standings) {
   return all
 }
 
-function pairingsAfterRound(res, entrants, round_pairings, round) {
+function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   var standings;
   console.log("round_pairings:", round)
   var pair = round_pairings[round + 1];
@@ -400,9 +422,9 @@ function pairingsAfterRound(res, entrants, round_pairings, round) {
   } else if (pair.type == "CH") {
     return pairCharlottesville(entrants, round);
   } else if (pair.type == "S") {
-    return pairSwiss(res, entrants, round);
+    return pairSwiss(res, entrants, repeats, round, round + 1);
   } else if (pair.type == "ST") {
-    return pairSwiss(res, entrants, round - 1);
+    return pairSwiss(res, entrants, repeats, round - 1, round + 1);
   }
 }
 // -----------------------------------------------------
@@ -1343,11 +1365,6 @@ function promote2(groups, i) {
   }
 }
 
-function _repeats(repeats, p, q) {
-  var key = [p.name, q.name].sort();
-  return repeats[key] ?? 0
-}
-
 function pairSwissInitial(standings) {
   var pairings = [];
   const half = standings.length / 2;
@@ -1366,7 +1383,7 @@ function pairSwissTop(groups, repeats, nrep) {
       if (i == j) {
         continue;
       }
-      var reps = _repeats(repeats, top[i], top[j])
+      var reps = repeats.get(top[i].name, top[j].name);
       if (reps < nrep) {
         candidates[i].push([reps, Math.abs(i - j), top[j].name, top[i].name])
       }
@@ -1396,7 +1413,7 @@ function pairCandidates(bracket) {
   for (var player of bracket) {
     for (var m of player) {
       const [repeats, distance, p1, p2] = m;
-      let weight = -(10 * repeats + distance);
+      let weight = -(30 * repeats + distance);
       let v1 = names[p1];
       let v2 = names[p2];
       edges.push([v1, v2, weight])
@@ -1418,19 +1435,18 @@ function pairCandidates(bracket) {
   return pairings
 }
 
-function pairSwiss(results, entrants, round) {
+function pairSwiss(results, entrants, repeats, round, for_round, ) {
   console.log("swiss pairing based on round", round)
   if (round <= 0) {
     return pairSwissInitial(entrants.seeding);
   }
-  var repeats = calculateRepeats(results, round);
-  console.log("repeats for round", round, repeats)
+  console.log("repeats for round", round, repeats.matches)
   var players = standingsAfterRound(results, entrants, round);
-  console.log("players:", players)
   var fixed;
-  [players, fixed] = removeFixedPairings(players, entrants, round + 1);
+  [players, fixed] = removeFixedPairings(players, entrants, for_round);
   var groups = calculateScoreGroups(players);
-  console.log("groups:", groups)
+  var dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
+  console.log("groups:", dgroups)
   var candidates;
   var nrep = 1;
   var paired = [];
@@ -1467,16 +1483,18 @@ function pairSwiss(results, entrants, round) {
       }
     }
   }
+  console.log("fixed:", fixed)
   paired.push(fixed);
   var out = []
   for (const group of paired) {
     for (var p of group) {
       if (p.first.name < p.second.name) {
-        p.repeats = _repeats(repeats, p.first, p.second)
+        p.repeats = repeats.get(p.first.name, p.second.name)
         out.push(p)
       }
     }
   }
+  console.log("out:", out)
   return out
 }
 
@@ -1620,14 +1638,15 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 
   var row = 2;
   var rr_starts = {}
+  var repeats = new Repeats();
   for (var i = 0; i < last_round; i++) {
     var rp = round_pairings[i + 1];
-    console.log("writing pairings for round:", i, rp);
+    console.log("writing pairings for round:", i + 1, rp);
     var pairings;
     if (i + 1 < round_ids.length) {
       pairings = res.extractPairings(i + 1)
     } else {
-      pairings = pairingsAfterRound(res, entrants, round_pairings, i);
+      pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
       for (var p of pairings) {
         var p1 = p.first.name;
         var p2 = p.second.name;
@@ -1666,10 +1685,8 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
         p.second.start = !p1_first;
       }
     }
-    var repeats = res.calculateRepeats(i + 1);
     for (var p of pairings) {
-      var key = [p.first.name, p.second.name].sort();
-      p.repeats = repeats[key]
+      p.repeats = repeats.add(p.first.name, p.second.name);
     }
     outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, i, row);
     row += pairings.length + 2;
