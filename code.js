@@ -80,20 +80,6 @@ class Results {
     }));
   }
 
-  calculateRepeats(round) {
-    var repeats = {}
-    for (var r of this.results) {
-      if (r.round <= round) {
-        var key = [r.winner, r.loser].sort()
-        if (repeats[key] === undefined) {
-          repeats[key] = 0
-        }
-        repeats[key] += 1;
-      }
-    }
-    return repeats;
-  }
-
   extractPairings(round) {
     var pairings = [];
     console.log("extracting pairings for round:", round)
@@ -1307,20 +1293,6 @@ function pIndex(arr, idx) {
 // -----------------------------------------------------
 // Swiss pairing.
 
-function calculateRepeats(results, round) {
-  var repeats = {}
-  for (var r of results.results) {
-    if (r.round <= round) {
-      var key = [r.winner, r.loser].sort()
-      if (repeats[key] === undefined) {
-        repeats[key] = 0
-      }
-      repeats[key] += 1;
-    }
-  }
-  return repeats;
-}
-
 function calculateScoreGroups(standings) {
   var groups = []
   for (var p of standings) {
@@ -1356,6 +1328,7 @@ function promote(groups, i, j) {
 }
 
 function promote2(groups, i) {
+  console.log("promoting two into", i);
   var j = i + 1
   promote(groups, i, j);
   if (groups[j].length == 0) {
@@ -1363,6 +1336,16 @@ function promote2(groups, i) {
   } else {
     promote(groups, i, j)
   }
+}
+
+function mergeBottom(groups) {
+  console.log("merging bottom two groups");
+  if (groups.length == 1) {
+    console.log("only one group, bailing out!")
+  }
+  var last = groups.length - 1;
+  groups[last - 1] = groups[last - 1].concat(groups[last]);
+  groups[last] = [];
 }
 
 function pairSwissInitial(standings) {
@@ -1440,7 +1423,7 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
   if (round <= 0) {
     return pairSwissInitial(entrants.seeding);
   }
-  console.log("repeats for round", round, repeats.matches)
+  //console.log("repeats for round", round, repeats.matches)
   var players = standingsAfterRound(results, entrants, round);
   var fixed;
   [players, fixed] = removeFixedPairings(players, entrants, for_round);
@@ -1450,7 +1433,14 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
   var candidates;
   var nrep = 1;
   var paired = [];
+  // Don't have too small a bottom group
+  while (groups[groups.length - 1].length < 6) {
+    mergeBottom(groups);
+    groups = groups.filter(e => e.length != 0);
+  }
   while (true) {
+    dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
+    console.log("groups:", dgroups)
     candidates = pairSwissTop(groups, repeats, nrep)
     //console.log("candidates:", candidates)
     if (candidates.some(e => e.length == 0)) {
@@ -1463,7 +1453,7 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
       promote2(groups, 0)
       groups = groups.filter(e => e.length != 0)
       if (groups.length == 1) {
-        console.log("failed!")
+        console.log("failed! after promotion")
         nrep += 1;
         console.log("reps:", nrep);
         continue;
