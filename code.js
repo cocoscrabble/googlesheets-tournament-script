@@ -1436,11 +1436,13 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
   var nrep = 1;
   var paired = [];
   // Don't have too small a bottom group
-  while (groups[groups.length - 1].length < 6) {
-    mergeBottom(groups);
-    groups = groups.filter(e => e.length != 0);
+  if (groups.length > 1) {
+    while (groups[groups.length - 1].length < 6) {
+      mergeBottom(groups);
+      groups = groups.filter(e => e.length != 0);
+    }
   }
-  while (true) {
+  while (groups.length > 0) {
     dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
     console.log("groups:", dgroups)
     candidates = pairSwissTop(groups, repeats, nrep)
