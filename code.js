@@ -1398,10 +1398,13 @@ function pairCandidates(bracket) {
   for (var player of bracket) {
     for (var m of player) {
       const [repeats, distance, p1, p2] = m;
-      let weight = -(30 * repeats + distance);
-      let v1 = names[p1];
-      let v2 = names[p2];
-      edges.push([v1, v2, weight])
+      // Don't pair candidates too far apart
+      if (distance < 11) {
+        let weight = -(30 * repeats + distance);
+        let v1 = names[p1];
+        let v2 = names[p2];
+        edges.push([v1, v2, weight])
+      }
     }
     // var name = player[0][3]
     // console.log(name, player.length, player)
