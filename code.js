@@ -133,6 +133,43 @@ class Repeats {
   }
 }
 
+class Starts {
+  constructor(res) {
+    this.starts = {}
+    for (const p of Object.values(res.players)) {
+      this.starts[p.name] = p.starts;
+    }
+  }
+
+  init(name) {
+    if (this.starts[name] === undefined) {
+      this.starts[name] = 0;
+    }
+  }
+
+  add(name1, name2) {
+    this.init(name1);
+    this.init(name2);
+    var p1_starts;
+    // bye always starts
+    if (name1.toLowerCase() === "bye") {
+      p1_starts = true;
+    } else if (name2.toLowerCase() === "bye") {
+      p1_starts = false;
+    } else {
+      var starts1 = this.starts[name1];
+      var starts2 = this.starts[name2];
+      p1_starts = starts1 <= starts2;
+    }
+    if (p1_starts) {
+      this.starts[name1]++;
+    } else {
+      this.starts[name2]++;
+    }
+    return p1_starts;
+  }
+}
+
 function winnerResults(game_result) {
   var start = game_result.winner_first ? 1 : 0;
   return {
@@ -1536,7 +1573,7 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
   outputRange.setValues(out);
 }
 
-function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, round, start_row) {
+function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, round, start_row) {
   console.log("pairings:", pairings);
   var vtable = 1;
   var used = new Set();
@@ -1559,11 +1596,13 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
     var first = x.first.start ? x.first.name : x.second.name;
     var second = x.first.start ? x.second.name : x.first.name;
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
+    var start = `${starts.starts[first]} - ${starts.starts[second]}`
     return [
       table,
       entrants.entrants[first] || first,
       entrants.entrants[second] || second,
       rep,
+      start,
     ]
   })
   out = out.sort((a, b) => parseInt(a) - parseInt(b));
@@ -1574,7 +1613,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, r
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", "", ""],
+    [round_header, "", "", "", ""],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1634,8 +1673,8 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   text_pairing_sheet.clearContents();
 
   var row = 2;
-  var rr_starts = {}
   var repeats = new Repeats();
+  var starts = new Starts(res);
   for (var i = 0; i < last_round; i++) {
     var rp = round_pairings[i + 1];
     console.log("writing pairings for round:", i + 1, rp);
@@ -1647,40 +1686,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
       for (var p of pairings) {
         var p1 = p.first.name;
         var p2 = p.second.name;
-        var p1_first;
-        if (rp.type == "R" || rp.type == "CH") {
-          if (rr_starts[p1] === undefined) {
-            rr_starts[p1] = 0
-          }
-          if (rr_starts[p2] === undefined) {
-            rr_starts[p2] = 0
-          }
-          // Always assign 'bye' the first otherwise the player playing the bye
-          // is assigned an extra first andthereby slightly penalised.
-          if (p1.toLowerCase() === "bye") {
-            p1_first = true;
-          } else if (p2.toLowerCase() === "bye") {
-            p1_first = false;
-          } else {
-            p1_first = rr_starts[p1] <= rr_starts[p2];
-          }
-          if (p1_first) {
-            rr_starts[p1]++;
-          } else {
-            rr_starts[p2]++;
-          }
-        } else {
-          if (p1.toLowerCase() === "bye") {
-            p1_first = true;
-          } else if (p2.toLowerCase() === "bye") {
-            p1_first = false;
-          } else {
-            //console.log("p1:", res.players[p1].name, res.players[p1].starts);
-            //console.log("p2:", res.players[p2].name, res.players[p2].starts);
-            p1_first = res.players[p1].starts <= res.players[p2].starts;
-            //console.log("p1_first:", p1_first);
-          }
-        }
+        var p1_first = starts.add(p1, p2);
         p.first.start = p1_first;
         p.second.start = !p1_first;
       }
@@ -1688,7 +1694,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
     for (var p of pairings) {
       p.repeats = repeats.add(p.first.name, p.second.name);
     }
-    outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, i, row);
+    outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, i, row);
     row += pairings.length + 2;
   }
 }
