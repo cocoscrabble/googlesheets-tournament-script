@@ -315,7 +315,7 @@ function makeRoundPairings(rows) {
 
 function collectRoundPairings() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("RoundPairing");
+  var result_sheet = sheet.getSheetByName("Settings");
   var result_range = result_sheet.getRange("A2:B");
   var results = result_range.getValues();
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
