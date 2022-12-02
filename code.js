@@ -1658,7 +1658,8 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
   var last_result = Math.max(...round_ids);
   var last_round = 0;
   for (var r of Object.values(round_pairings)) {
-    if (r.start - 1 <= last_result) {
+    if ((r.start - 1 <= last_result) ||
+      (r.type == "R" && r.start - 1 <= last_round)) {
       console.log("Pairing round", r, "based on round", r.start);
       last_round = r.round;
     }
@@ -1684,9 +1685,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
     } else {
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
       for (var p of pairings) {
-        var p1 = p.first.name;
-        var p2 = p.second.name;
-        var p1_first = starts.add(p1, p2);
+        var p1_first = starts.add(p.first.name, p.second.name);
         p.first.start = p1_first;
         p.second.start = !p1_first;
       }
