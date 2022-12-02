@@ -351,6 +351,7 @@ function removeFixedPairings(standings, entrants, round) {
   console.log("round:", round);
   console.log("fp:", fp);
   if (fp === undefined) {
+    // Changed in early bird sheet
     return [standings, []];
   }
   var remove = {};
@@ -1166,11 +1167,9 @@ Edmonds.prototype.augmentMatching = function (k) {
       p = this.labelEnd[bt] ^ 1;
       //console.log('DEBUG: PAIR ' + s + ' ' + t + '(k=' + ~~(p/2) + ')');
 
-
     }
   }
 };
-
 
 //INIT STUFF//
 Edmonds.prototype.init = function () {
@@ -1297,6 +1296,7 @@ function pIndex(arr, idx) {
 
 function calculateScoreGroups(standings) {
   var groups = []
+  console.log("standings:", standings)
   for (var p of standings) {
     var k = p.wins
     if (groups[k] === undefined) {
@@ -1521,7 +1521,8 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
       x.wins + 0.5 * x.ties,
       x.losses + 0.5 * x.ties,
       x.spread,
-      rating
+      x.starts,
+      rating,
     ]
   })
 
@@ -1604,7 +1605,6 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 
   console.log("processed results");
 
-
   // Write out the standings
   var standings_sheet = sheet.getSheetByName(standings_sheet_label);
   outputPlayerStandings(standings_sheet, res.players, entrants, ratings);
@@ -1675,7 +1675,10 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
           } else if (p2.toLowerCase() === "bye") {
             p1_first = false;
           } else {
+            //console.log("p1:", res.players[p1].name, res.players[p1].starts);
+            //console.log("p2:", res.players[p2].name, res.players[p2].starts);
             p1_first = res.players[p1].starts <= res.players[p2].starts;
+            //console.log("p1_first:", p1_first);
           }
         }
         p.first.start = p1_first;
@@ -1698,3 +1701,5 @@ function calculateStandings() {
 //   makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
 //   standingsAfterRound
 // };
+
+
