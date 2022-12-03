@@ -63,7 +63,7 @@ class Results {
     this.results.push(game_result);
     this.processResult(game_result);
   }
-  
+
   processResult(game_result) {
     var winner = winnerResults(game_result);
     var loser = loserResults(game_result);
@@ -1666,7 +1666,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", "", "", ""],
+    [round_header, "", "", "", "Firsts"],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1681,7 +1681,63 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   textPairingRange.setValues(text_pairings);
 }
 
-function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_label, text_pairing_sheet_label) {
+function _show_game_for_stats(g) {
+  if (g === undefined) {
+    return ""
+  }
+  return `${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+}
+
+function _show_high_game(g) {
+  if (g === undefined) {
+    return ""
+  }
+  var total = g.winner_score + g.loser_score;
+  return `${total}: ${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+}
+
+function _show_low_spread(g) {
+  if (g === undefined) {
+    return ""
+  }
+  var spread = g.winner_score - g.loser_score;
+  return `${spread}: ${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+}
+
+function outputStatistics(statistics_sheet, res) {
+  results = res.results
+  console.log("outputting stats:", results)
+
+  var high_game = [...results].sort((x, y) =>
+    y.winner_score + y.loser_score - x.winner_score - x.loser_score);
+  var high_win = [...results].sort((x, y) => y.winner_score - x.winner_score);
+  var high_loss = [...results].sort((x, y) => y.loser_score - x.loser_score);
+  var low_spread = [...results].sort((x, y) =>
+    x.winner_score - x.loser_score - y.winner_score + y.loser_score);
+  var out = [["High Win", "High Loss/Tie"]]
+  for (i = 0; i < 10; i++) {
+    out.push([high_win[i], high_loss[i]].map(_show_game_for_stats))
+  }
+  out.push(["", ""]);
+  out.push(["", ""]);
+  out.push(["High Game", "Tuff Luck"]);
+  for (i = 0; i < 10; i++) {
+    out.push([_show_high_game(high_game[i]), _show_low_spread(low_spread[i])])
+  }
+  console.log(out)
+
+  // Write out standings starting in cell A2
+  var outputRow = 1;
+  var outputCol = 1;
+  statistics_sheet.clearContents();
+  var outputRange = statistics_sheet.getRange(outputRow, outputCol, out.length, out[0].length);
+  outputRange.setValues(out);
+}
+
+function processSheet(
+  input_sheet_label, standings_sheet_label, pairing_sheet_label, text_pairing_sheet_label,
+  statistics_sheet_label
+) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName(input_sheet_label);
 
@@ -1697,9 +1753,18 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 
   console.log("processed results");
 
+  if (entrants.seeding.length % 2 != 0) {
+    SpreadsheetApp.getUi().alert("Field has an odd number of players. Add a Bye if needed.");
+    return;
+  }
+
   // Write out the standings
   var standings_sheet = sheet.getSheetByName(standings_sheet_label);
   outputPlayerStandings(standings_sheet, res.players, entrants, ratings);
+
+  // Write out statistics
+  var statistics_sheet = sheet.getSheetByName(statistics_sheet_label);
+  outputStatistics(statistics_sheet, res);
 
   // Write out the pairings
   var round_pairings = collectRoundPairings();
@@ -1752,7 +1817,7 @@ function processSheet(input_sheet_label, standings_sheet_label, pairing_sheet_la
 }
 
 function calculateStandings() {
-  processSheet("Results", "Standings", "Pairings", "Text Pairings");
+  processSheet("Results", "Standings", "Pairings", "Text Pairings", "Stats");
 }
 
 // export {
