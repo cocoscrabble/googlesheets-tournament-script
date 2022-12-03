@@ -140,8 +140,15 @@ class Repeats {
 class Starts {
   constructor(res) {
     this.starts = {}
+    this.round_starts = []
     for (const p of Object.values(res.players)) {
       this.starts[p.name] = p.starts;
+    }
+  }
+
+  init_round(round) {
+    if (this.round_starts[round] === undefined) {
+      this.round_starts[round] = {}
     }
   }
 
@@ -151,10 +158,12 @@ class Starts {
     }
   }
 
-  add(name1, name2) {
+  add(name1, name2, round) {
+    this.init_round(round);
     this.init(name1);
     this.init(name2);
     var p1_starts;
+    //console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
     // bye always starts
     if (name1.toLowerCase() === "bye") {
       p1_starts = true;
@@ -163,13 +172,22 @@ class Starts {
     } else {
       var starts1 = this.starts[name1];
       var starts2 = this.starts[name2];
-      p1_starts = starts1 <= starts2;
+      if (starts1 == starts2) {
+        p1_starts = !this.round_starts[round][name1];
+      } else {
+        p1_starts = starts1 < starts2;
+      }
     }
     if (p1_starts) {
       this.starts[name1]++;
+      this.round_starts[round][name1] = true;
+      this.round_starts[round][name2] = false;
     } else {
       this.starts[name2]++;
+      this.round_starts[round][name1] = false;
+      this.round_starts[round][name2] = true;
     }
+    //console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
     return p1_starts;
   }
 }
