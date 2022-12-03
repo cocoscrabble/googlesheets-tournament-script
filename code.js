@@ -33,6 +33,7 @@ class Results {
         score: 0,
         spread: 0,
         starts: 0,
+        byes: 0,
       }
     }
     return this.players[name];
@@ -52,6 +53,9 @@ class Results {
     }
     p.score = p.wins + 0.5 * p.ties;
     p.starts += result.start;
+    if (result.opp.toLowerCase() === "bye") {
+      p.byes += 1;
+    }
   }
 
   addGeneratedResult(game_result) {
@@ -387,28 +391,59 @@ function removeFixedPairings(standings, entrants, round) {
   var fp = entrants.fixed_pairings[round];
   console.log("round:", round);
   console.log("fp:", fp);
-  if (fp === undefined) {
-    // Changed in early bird sheet
-    return [standings, []];
-  }
   var remove = {};
   var fixed = [];
-  for (var pair of fp) {
-    var p1 = getFixedPairing(standings, pair.first);
-    var p2 = getFixedPairing(standings, pair.second);
-    if (p1 != p2) {
-      console.log("p1, p2:", [p1, p2]);
-      [p1, p2] = [p1, p2].sort();
-      console.log("sorted:", [p1, p2]);
-      remove[p1] = p2;
-      remove[p2] = p1;
-      fixed.push({first: {name: p1}, second: {name: p2}});
+  if (fp !== undefined) {
+    for (var pair of fp) {
+      var p1 = getFixedPairing(standings, pair.first);
+      var p2 = getFixedPairing(standings, pair.second);
+      if (p1 != p2) {
+        console.log("p1, p2:", [p1, p2]);
+        [p1, p2] = [p1, p2].sort();
+        console.log("sorted:", [p1, p2]);
+        remove[p1] = p2;
+        remove[p2] = p1;
+        fixed.push({first: {name: p1}, second: {name: p2}});
+      }
     }
   }
   //console.log("pairing:", remove);
   standings = standings.filter(p => remove[p.name] === undefined);
+  var bye_pair = pairBye(standings);
+  if (bye_pair.length > 0) {
+    fixed.push({first: bye_pair[0], second: bye_pair[1]})
+    standings = standings.filter(p => p.name != bye_pair[0].name);
+    standings = standings.filter(p => p.name != bye_pair[1].name);
+  }
   //console.log("new standings:", standings);
   return [standings, fixed];
+}
+
+function isBye(p) {
+  return p.name.toLowerCase() == "bye";
+}
+
+function _player_byes_sort(x, y) {
+  if (x.byes == y.byes) {
+    if (x.score == y.score) {
+      return (x.spread - y.spread);
+    } else {
+      return (x.score - y.score);
+    }
+  } else {
+    return (x.byes - y.byes)
+  }
+}
+
+function pairBye(standings) {
+  var bye = standings.filter(isBye);
+  if (bye.length == 0) {
+    return []
+  }
+  var candidates = standings.filter((p) => !isBye(p));
+  candidates.sort(_player_byes_sort);
+  //console.log("pairing bye:", candidates)
+  return [bye[0], candidates[0]]
 }
 
 function getCurrentEntrantsRanking(res, entrants, standings) {
