@@ -295,6 +295,7 @@ function collectEntrants() {
 function makeRoundPairings(rows) {
   var quads = {}
   var round_robins = {}
+  var double_round_robins = {}
   var rounds = []
   for (var entry of rows) {
     // col A = entry[0], B = 1
@@ -310,6 +311,11 @@ function makeRoundPairings(rows) {
         round_robins[pairing] = [];
       }
       round_robins[pairing].push(round);
+    } else if (pairing.startsWith("DR")) {
+      if (double_round_robins[pairing] === undefined) {
+        double_round_robins[pairing] = [];
+      }
+      double_round_robins[pairing].push(round);
     } else if (pairing == "CH") {
       rounds[round] = { round: round, type: pairing, start: 0 };
     } else if (pairing == "ST") {
@@ -330,6 +336,13 @@ function makeRoundPairings(rows) {
     for (i = 0; i < rr.length; i++) {
       round = rr[i];
       rounds[round] = { round: round, type: "R", start: rr[0], pos: i + 1 }
+    }
+  }
+  for (const r of Object.keys(double_round_robins)) {
+    const rr = double_round_robins[r];
+    for (i = 0; i < rr.length; i++) {
+      round = rr[i];
+      rounds[round] = { round: round, type: "DR", start: rr[0], pos: i + 1 }
     }
   }
   return rounds;
@@ -489,6 +502,9 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   } else if (pair.type == "R") {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
+  } else if (pair.type == "DR") {
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
+    return pairDoubleRoundRobin(standings, pair.pos)
   } else if (pair.type.startsWith("QD")) {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairDistributedQuads(standings, pair.pos);
@@ -528,6 +544,19 @@ function pairRoundRobin(standings, pos) {
   // Pair for game #pos in the round robin
   var n = standings.length;
   var pairings = [];
+  var [h1, h2] = _pairRR(n, pos - 1);
+  for (var i = 0; i < standings.length / 2; i += 1) {
+    pairings.push({ first: standings[h1[i]], second: standings[h2[i]] });
+  }
+  return pairings
+}
+
+function pairDoubleRoundRobin(standings, pos) {
+  // Pair for game #pos in a double round robin where everyone plays everyone
+  // else twice, with repeated games played consecutively.
+  var n = standings.length;
+  var pairings = [];
+  pos = Math.round(pos / 2);
   var [h1, h2] = _pairRR(n, pos - 1);
   for (var i = 0; i < standings.length / 2; i += 1) {
     pairings.push({ first: standings[h1[i]], second: standings[h2[i]] });
@@ -1611,8 +1640,9 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
       x.wins + 0.5 * x.ties,
       x.losses + 0.5 * x.ties,
       x.spread,
-      x.starts,
       rating,
+      "",
+      x.starts,
     ]
   })
 
