@@ -84,6 +84,12 @@ class Results {
     }));
   }
 
+  isRoundComplete(round) {
+    var n_games = this.rounds[round].length;
+    var n_players = Object.keys(this.players).length;
+    return n_games * 2 == n_players;
+  }
+
   extractPairings(round) {
     var pairings = [];
     console.log("extracting pairings for round:", round)
@@ -1828,7 +1834,7 @@ function processSheet(
     var rp = round_pairings[i + 1];
     console.log("writing pairings for round:", i + 1, rp);
     var pairings;
-    if (i + 1 < round_ids.length) {
+    if ((i + 1 < round_ids.length) && res.isRoundComplete(i + 1)) {
       pairings = res.extractPairings(i + 1)
     } else {
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
