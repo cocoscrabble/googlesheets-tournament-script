@@ -147,9 +147,6 @@ class Starts {
   constructor(res) {
     this.starts = {}
     this.round_starts = []
-    for (const p of Object.values(res.players)) {
-      this.starts[p.name] = p.starts;
-    }
   }
 
   init_round(round) {
@@ -164,12 +161,30 @@ class Starts {
     }
   }
 
+  register(pairing, round) {
+    // Register an extracted pairing
+    const name1 = pairing.first.name;
+    const name2 = pairing.second.name;
+    this.init_round(round);
+    this.init(name1);
+    this.init(name2);
+    if (pairing.first.start) {
+      this.starts[name1]++
+      this.round_starts[round][name1] = true;
+      this.round_starts[round][name2] = false;
+    } else {
+      this.starts[name2]++
+      this.round_starts[round][name1] = false;
+      this.round_starts[round][name2] = true;
+    }
+  }
+
   add(name1, name2, round) {
     this.init_round(round);
     this.init(name1);
     this.init(name2);
     var p1_starts;
-    //console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
+    // console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
     // bye always starts
     if (name1.toLowerCase() === "bye") {
       p1_starts = true;
@@ -179,7 +194,7 @@ class Starts {
       var starts1 = this.starts[name1];
       var starts2 = this.starts[name2];
       if (starts1 == starts2) {
-        p1_starts = !this.round_starts[round][name1];
+        p1_starts = !this.round_starts[round - 1][name1];
       } else {
         p1_starts = starts1 < starts2;
       }
@@ -193,7 +208,7 @@ class Starts {
       this.round_starts[round][name1] = false;
       this.round_starts[round][name2] = true;
     }
-    //console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
+    // console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
     return p1_starts;
   }
 }
@@ -1831,15 +1846,20 @@ function processSheet(
   var repeats = new Repeats();
   var starts = new Starts(res);
   for (var i = 0; i < last_round; i++) {
-    var rp = round_pairings[i + 1];
-    console.log("writing pairings for round:", i + 1, rp);
+    var round = i + 1;
+    var rp = round_pairings[round];
+    console.log("writing pairings for round:", round, rp);
     var pairings;
-    if ((i + 1 < round_ids.length) && res.isRoundComplete(i + 1)) {
-      pairings = res.extractPairings(i + 1)
+    if ((round < round_ids.length) && res.isRoundComplete(round)) {
+      pairings = res.extractPairings(round)
+      for (var p of pairings) {
+        starts.register(p, round);
+      }
     } else {
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
+      // console.log("round starts:", starts.round_starts);
       for (var p of pairings) {
-        var p1_first = starts.add(p.first.name, p.second.name);
+        var p1_first = starts.add(p.first.name, p.second.name, round);
         p.first.start = p1_first;
         p.second.start = !p1_first;
       }
