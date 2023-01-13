@@ -1848,7 +1848,7 @@ function outputStatistics(statistics_sheet, res, entrants) {
   for (i = 0; i < 10; i++) {
     out.push([
       _show_high_game(high_game[i]),
-      _show_high_spread(high_spread[i], entrants),
+      _show_spread(high_spread[i], entrants),
       _show_spread(low_spread[i]),
       _show_win(tie[i])
     ].map((x) => x == "" ? "" : `${i + 1}. ${x}`))
