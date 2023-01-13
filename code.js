@@ -194,7 +194,11 @@ class Starts {
       var starts1 = this.starts[name1];
       var starts2 = this.starts[name2];
       if (starts1 == starts2) {
-        p1_starts = !this.round_starts[round - 1][name1];
+        if (this.round_starts[round - 1] !== undefined) {
+          p1_starts = !this.round_starts[round - 1][name1];
+        } else {
+          p1_starts = true;
+        }
       } else {
         p1_starts = starts1 < starts2;
       }
@@ -494,7 +498,7 @@ function pairBye(standings) {
   }
   var candidates = standings.filter((p) => !isBye(p));
   candidates.sort(_player_byes_sort);
-  //console.log("pairing bye:", candidates)
+  console.log("pairing bye:", candidates)
   return [bye[0], candidates[0]]
 }
 
@@ -1857,7 +1861,6 @@ function processSheet(
       }
     } else {
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
-      // console.log("round starts:", starts.round_starts);
       for (var p of pairings) {
         var p1_first = starts.add(p.first.name, p.second.name, round);
         p.first.start = p1_first;
