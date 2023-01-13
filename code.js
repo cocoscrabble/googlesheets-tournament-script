@@ -217,6 +217,44 @@ class Starts {
   }
 }
 
+class Byes {
+  constructor() {
+    this.byes = {}
+  }
+
+  init(name) {
+    if (this.byes[name] === undefined) {
+      this.byes[name] = 0;
+    }
+  }
+
+  add(name) {
+    this.init(name);
+    this.byes[name]++
+  }
+
+  get(name) {
+    var ret = this.byes[name];
+    return ret === undefined ? 0 : ret;
+  }
+
+  update(p) {
+    if (isBye(p.first)) {
+      this.add(p.second.name)
+    }
+    if (isBye(p.second)) {
+      this.add(p.first.name)
+    }
+  }
+
+  reset() {
+    this.byes = {}
+  }
+}
+
+// Global register of byes including ones paired for future rounds
+var BYES = new Byes();
+
 function winnerResults(game_result) {
   var start = game_result.winner_first ? 1 : 0;
   return {
@@ -497,6 +535,9 @@ function pairBye(standings) {
     return []
   }
   var candidates = standings.filter((p) => !isBye(p));
+  for (var p of candidates) {
+    p.byes = BYES.get(p.name);
+  }
   candidates.sort(_player_byes_sort);
   console.log("pairing bye:", candidates)
   return [bye[0], candidates[0]]
@@ -1537,7 +1578,7 @@ function pairCandidates(bracket) {
     i++;
   }
   // console.log("names", names)
-  console.log("inames", inames)
+  // console.log("inames", inames)
 
   for (var player of bracket) {
     for (var m of player) {
@@ -1555,7 +1596,7 @@ function pairCandidates(bracket) {
   }
   // console.log("edges:", edges)
   var b = blossom(edges, true)
-  console.log("blossom:", b)
+  // console.log("blossom:", b)
   var pairings = []
   for (var i = 0; i < b.length; i++) {
     let v = b[i];
@@ -1563,7 +1604,7 @@ function pairCandidates(bracket) {
     let p2 = inames[v];
     pairings.push({ first: { name: p1 }, second: { name: p2 } })
   }
-  console.log("sub pairing:", pairings)
+  // console.log("sub pairing:", pairings)
   return pairings
 }
 
@@ -1578,7 +1619,7 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
   [players, fixed] = removeFixedPairings(players, entrants, for_round);
   var groups = calculateScoreGroups(players);
   var dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
-  console.log("groups:", dgroups)
+  // console.log("groups:", dgroups)
   var candidates;
   var nrep = 1;
   var paired = [];
@@ -1768,8 +1809,6 @@ function _show_spread(g) {
 
 function outputStatistics(statistics_sheet, res) {
   results = res.results
-  console.log("outputting stats:", results)
-
   results = [...results].filter((x) => x.loser != 'Bye');
   var no_ties = [...results].filter((x) => x.winner_score > x.loser_score);
   var high_game = [...results].sort((x, y) =>
@@ -1790,7 +1829,7 @@ function outputStatistics(statistics_sheet, res) {
       _show_loss(high_loss[i]),
       _show_win(low_win[i]),
       _show_loss(low_loss[i])
-    ])
+    ].map((x) => x == "" ? "" : `${i + 1}. ${x}`))
   }
   out.push(["", "", "", ""]);
   out.push(["", "", "", ""]);
@@ -1802,7 +1841,7 @@ function outputStatistics(statistics_sheet, res) {
       _show_spread(high_spread[i]),
       _show_spread(low_spread[i]),
       _show_win(tie[i])
-    ])
+    ].map((x) => x == "" ? "" : `${i + 1}. ${x}`))
   }
   console.log(out)
 
@@ -1874,6 +1913,7 @@ function processSheet(
   var row = 2;
   var repeats = new Repeats();
   var starts = new Starts(res);
+  BYES.reset();
   for (var i = 0; i < last_round; i++) {
     var round = i + 1;
     var rp = round_pairings[round];
@@ -1885,6 +1925,12 @@ function processSheet(
         starts.register(p, round);
       }
     } else {
+      for (var k of Object.keys(res.players)) {
+        var b = BYES.get(k);
+        if (b > 0) {
+          console.log(`byes for ${k}: ${b}`);
+        }
+      }
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
       for (var p of pairings) {
         var p1_first = starts.add(p.first.name, p.second.name, round);
@@ -1893,6 +1939,7 @@ function processSheet(
       }
     }
     for (var p of pairings) {
+      BYES.update(p);
       p.repeats = repeats.add(p.first.name, p.second.name);
     }
     outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, i, row);
