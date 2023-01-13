@@ -1807,7 +1807,17 @@ function _show_spread(g) {
   return `${g.winner} ${g.winner_score} - ${g.loser} ${g.loser_score} (${spread})`
 }
 
-function outputStatistics(statistics_sheet, res) {
+function _show_high_spread(g, entrants) {
+  if (g === undefined) {
+    return ""
+  }
+  var spread = g.winner_score - g.loser_score;
+  var winner_name = entrants.entrants[g.winner] || `${g.winner} (#?)`;
+  var loser_name = entrants.entrants[g.loser] || `${g.loser} (#?)`;
+  return `${winner_name} ${g.winner_score} - ${loser_name} ${g.loser_score}: (${spread})`
+}
+
+function outputStatistics(statistics_sheet, res, entrants) {
   results = res.results
   results = [...results].filter((x) => x.loser != 'Bye');
   var no_ties = [...results].filter((x) => x.winner_score > x.loser_score);
@@ -1838,7 +1848,7 @@ function outputStatistics(statistics_sheet, res) {
   for (i = 0; i < 10; i++) {
     out.push([
       _show_high_game(high_game[i]),
-      _show_spread(high_spread[i]),
+      _show_high_spread(high_spread[i], entrants),
       _show_spread(low_spread[i]),
       _show_win(tie[i])
     ].map((x) => x == "" ? "" : `${i + 1}. ${x}`))
@@ -1883,7 +1893,7 @@ function processSheet(
 
   // Write out statistics
   var statistics_sheet = sheet.getSheetByName(statistics_sheet_label);
-  outputStatistics(statistics_sheet, res);
+  outputStatistics(statistics_sheet, res, entrants);
 
   // Write out the pairings
   var round_pairings = collectRoundPairings();
