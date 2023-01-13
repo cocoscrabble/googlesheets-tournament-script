@@ -1736,11 +1736,18 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   textPairingRange.setValues(text_pairings);
 }
 
-function _show_game_for_stats(g) {
+function _show_win(g) {
   if (g === undefined) {
     return ""
   }
-  return `${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+  return `${g.winner} ${g.winner_score} - ${g.loser} ${g.loser_score}`
+}
+
+function _show_loss(g) {
+  if (g === undefined) {
+    return ""
+  }
+  return `${g.loser} ${g.loser_score} - ${g.winner} ${g.winner_score}`
 }
 
 function _show_high_game(g) {
@@ -1748,36 +1755,54 @@ function _show_high_game(g) {
     return ""
   }
   var total = g.winner_score + g.loser_score;
-  return `${total}: ${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+  return `${g.winner} ${g.winner_score} - ${g.loser} ${g.loser_score} (${total})`
 }
 
-function _show_low_spread(g) {
+function _show_spread(g) {
   if (g === undefined) {
     return ""
   }
   var spread = g.winner_score - g.loser_score;
-  return `${spread}: ${g.winner} (${g.winner_score}) - ${g.loser} (${g.loser_score})`
+  return `${g.winner} ${g.winner_score} - ${g.loser} ${g.loser_score} (${spread})`
 }
 
 function outputStatistics(statistics_sheet, res) {
   results = res.results
   console.log("outputting stats:", results)
 
+  results = [...results].filter((x) => x.loser != 'Bye');
+  var no_ties = [...results].filter((x) => x.winner_score > x.loser_score);
   var high_game = [...results].sort((x, y) =>
     y.winner_score + y.loser_score - x.winner_score - x.loser_score);
   var high_win = [...results].sort((x, y) => y.winner_score - x.winner_score);
-  var high_loss = [...results].sort((x, y) => y.loser_score - x.loser_score);
-  var low_spread = [...results].sort((x, y) =>
+  var low_win = [...results].sort((x, y) => x.winner_score - y.winner_score);
+  var high_loss = [...no_ties].sort((x, y) => y.loser_score - x.loser_score);
+  var low_loss = [...no_ties].sort((x, y) => x.loser_score - y.loser_score);
+  var tie = [...results].filter((x) => x.winner_score == x.loser_score).sort((x, y) => y.loser_score - x.loser_score);
+  var high_spread = [...no_ties].sort((x, y) =>
+    y.winner_score - y.loser_score - x.winner_score + x.loser_score);
+  var low_spread = [...no_ties].sort((x, y) =>
     x.winner_score - x.loser_score - y.winner_score + y.loser_score);
-  var out = [["High Win", "High Loss/Tie"]]
+  var out = [["Highest Wins", "Highest Losses", "Lowest Wins", "Lowest Losses"]]
   for (i = 0; i < 10; i++) {
-    out.push([high_win[i], high_loss[i]].map(_show_game_for_stats))
+    out.push([
+      _show_win(high_win[i]),
+      _show_loss(high_loss[i]),
+      _show_win(low_win[i]),
+      _show_loss(low_loss[i])
+    ])
   }
-  out.push(["", ""]);
-  out.push(["", ""]);
-  out.push(["High Game", "Tuff Luck"]);
+  out.push(["", "", "", ""]);
+  out.push(["", "", "", ""]);
+
+  out.push(["Highest Games", "Biggest Blowouts", "Nailbiters", "Ties"]);
   for (i = 0; i < 10; i++) {
-    out.push([_show_high_game(high_game[i]), _show_low_spread(low_spread[i])])
+    out.push([
+      _show_high_game(high_game[i]),
+      _show_spread(high_spread[i]),
+      _show_spread(low_spread[i]),
+      _show_win(tie[i])
+    ])
   }
   console.log(out)
 
