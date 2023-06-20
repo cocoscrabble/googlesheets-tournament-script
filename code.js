@@ -369,6 +369,8 @@ function makeRoundPairings(rows) {
         quads[pairing] = [];
       }
       quads[pairing].push(round);
+    } else if (pairing == "RAND") {
+      rounds[round] = { round: round, type: pairing, start: round };
     } else if (pairing.startsWith("R")) {
       if (round_robins[pairing] === undefined) {
         round_robins[pairing] = [];
@@ -565,6 +567,9 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   } else if (pair.type == "Q") {
     standings = standingsAfterRound(res, entrants, round);
     return pairQoth(standings, entrants, round)
+  } else if (pair.type == "RAND") {
+    standings = standingsAfterRound(res, entrants, round);
+    return pairRandom(standings, entrants, round);
   } else if (pair.type == "R") {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
@@ -588,6 +593,7 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
     return pairSwiss(res, entrants, repeats, round - 1, round + 1);
   }
 }
+
 // -----------------------------------------------------
 // Round robin pairing.
 // See https://github.com/domino14/liwords/ for strategy
@@ -626,6 +632,33 @@ function pairDoubleRoundRobin(standings, pos) {
   var [h1, h2] = _pairRR(n, pos - 1);
   for (var i = 0; i < standings.length / 2; i += 1) {
     pairings.push({ first: standings[h1[i]], second: standings[h2[i]] });
+  }
+  return pairings
+}
+
+// -----------------------------------------------------
+// Random pairing.
+
+function shuffleArray(array) {
+  // In-place Fisher-Yates variant, see
+  // https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function pairRandom(standings, entrants, round) {
+  var fixed
+  [standings, fixed] = removeFixedPairings(standings, entrants, round + 1);
+  shuffleArray(standings);
+  // Now this is just KotH on the shuffled standings
+  var pairings = [];
+  for (var i = 0; i < standings.length; i += 2) {
+    pairings.push({ first: standings[i], second: standings[i + 1] })
+  }
+  for (var p of fixed) {
+    pairings.push(p);
   }
   return pairings
 }
