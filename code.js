@@ -106,11 +106,12 @@ class Results {
 }
 
 class Entrants {
-  constructor(entrants, seeding, tables, fixed_pairings) {
+  constructor(entrants, seeding, tables, fixed_pairings, fixed_starts) {
     this.entrants = entrants
     this.seeding = seeding
     this.tables = tables
     this.fixed_pairings = fixed_pairings
+    this.fixed_starts = fixed_starts
   }
 
   addEntrant(e) {
@@ -144,10 +145,11 @@ class Repeats {
 }
 
 class Starts {
-  constructor(res) {
+  constructor(res, entrants) {
     this.starts = {}  // number of starts
     this.h2h = {}  // for [name1, name2], did name1 start?
     this.recent_starts = {}  // most recent round started
+    this.fixed_starts = entrants.fixed_starts;
   }
 
   init(name) {
@@ -191,6 +193,10 @@ class Starts {
     if (name1.toLowerCase() === "bye") {
       p1_starts = true;
     } else if (name2.toLowerCase() === "bye") {
+      p1_starts = false;
+    } else if (this.fixed_starts[round, name1] === true) {
+      p1_starts = true;
+    } else if (this.fixed_starts[round, name2] === true) {
       p1_starts = false;
     } else {
       var starts1 = this.starts[name1];
@@ -252,6 +258,13 @@ class Byes {
 
   reset() {
     this.byes = {}
+  }
+}
+
+class Fixed {
+  constructor() {
+    this.pairings = {}
+    this.starts = {}
   }
 }
 
@@ -336,7 +349,10 @@ function makeEntrants(rows) {
   var seeding = []
   var tables = {}
   var fixed_pairings = {}
-  var ret = new Entrants(entrants, seeding, tables, fixed_pairings);
+  var fixed_starts = {}
+  var ret = new Entrants(
+    entrants, seeding, tables, fixed_pairings, fixed_starts
+  );
   for (var entry of rows) {
     ret.addEntrant(entrantFromRow(entry));
   }
@@ -438,6 +454,7 @@ function parseFixedPairing(p) {
 
 function makeFixedPairings(rows) {
   var fp = {};
+  var fs = {};
   for (var entry of rows) {
     var round = parseInt(entry[0]);
     var p1 = parseFixedPairing(entry[1]);
@@ -446,14 +463,18 @@ function makeFixedPairings(rows) {
       fp[round] = [];
     }
     fp[round].push({first: p1, second: p2})
+    if (entry[3] !== undefined){
+      var sp = parseFixedPairing(entry[3]);
+      fs[[round, sp]] = true;
+    }
   }
-  return fp;
+  return new Fixed(fp, fs);
 }
 
 function collectFixedPairings() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
   var result_sheet = sheet.getSheetByName("FixedPairing");
-  var result_range = result_sheet.getRange("A2:C");
+  var result_range = result_sheet.getRange("A2:D");
   var results = result_range.getValues();
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
   var data = results.slice(0, last_row - 1);
@@ -1914,7 +1935,8 @@ function processSheet(
     ratings[x.name] = x.rating
   }
   var fp = collectFixedPairings();
-  entrants.fixed_pairings = fp;
+  entrants.fixed_pairings = fp.pairings;
+  entrants.fixed_starts = fp.starts;
 
   console.log("processed results");
 
@@ -1958,7 +1980,7 @@ function processSheet(
 
   var row = 2;
   var repeats = new Repeats();
-  var starts = new Starts(res);
+  var starts = new Starts(res, entrants);
   BYES.reset();
   for (var i = 0; i < last_round; i++) {
     var round = i + 1;
