@@ -188,15 +188,14 @@ class Starts {
     this.init(name1);
     this.init(name2);
     var p1_starts;
-    // console.log("starts:", name1, name2, p1_starts, this.starts[name1], this.starts[name2])
     // bye always starts
     if (name1.toLowerCase() === "bye") {
       p1_starts = true;
     } else if (name2.toLowerCase() === "bye") {
       p1_starts = false;
-    } else if (this.fixed_starts[round, name1] === true) {
+    } else if (this.fixed_starts[[round, name1]] === true) {
       p1_starts = true;
-    } else if (this.fixed_starts[round, name2] === true) {
+    } else if (this.fixed_starts[[round, name2]] === true) {
       p1_starts = false;
     } else {
       var starts1 = this.starts[name1];
@@ -262,9 +261,9 @@ class Byes {
 }
 
 class Fixed {
-  constructor() {
-    this.pairings = {}
-    this.starts = {}
+  constructor(pairings, starts) {
+    this.pairings = pairings
+    this.starts = starts
   }
 }
 
@@ -465,7 +464,7 @@ function makeFixedPairings(rows) {
     fp[round].push({first: p1, second: p2})
     if (entry[3] !== undefined){
       var sp = parseFixedPairing(entry[3]);
-      fs[[round, sp]] = true;
+      fs[[round, sp.name]] = true;
     }
   }
   return new Fixed(fp, fs);
