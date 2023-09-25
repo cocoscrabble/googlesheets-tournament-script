@@ -593,6 +593,8 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   } else if (pair.type == "RAND") {
     standings = standingsAfterRound(res, entrants, round);
     return pairRandom(standings, entrants, round);
+  } else if (pair.type == "RANDNR") {
+    return pairRandomNoRepeats(res, entrants, repeats, round);
   } else if (pair.type == "R") {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairRoundRobin(standings, pair.pos)
@@ -686,6 +688,50 @@ function pairRandom(standings, entrants, round) {
   return pairings
 }
 
+function pairRandomNoRepeats(results, entrants, repeats, round) {
+  console.log("random no repeats pairing for round", round)
+  var players = standingsAfterRound(results, entrants, round);
+  if (round <= 0) {
+    return pairRandom(players, entrants, round);
+  }
+  var bracket, fixed;
+  [bracket, fixed] = removeFixedPairings(players, entrants, round);
+  var pairings = []
+  var edges = [];
+  var names = {};
+  var inames = {};
+  var i = 0;
+  for (var player of bracket) {
+    names[player.name] = i;
+    inames[i] = player.name;
+    i++;
+  }
+  for (var p1 of bracket) {
+    for (var p2 of bracket) {
+      if (p1.name < p2.name) {
+        let reps = repeats.get(p1.name, p2.name);
+        if (reps === undefined) {
+          reps = 0;
+        }
+        let weight = -(10 * reps + Math.random())
+        let v1 = names[p1.name];
+        let v2 = names[p2.name];
+        edges.push([v1, v2, weight]);
+      }
+    }
+  }
+  var b = blossom(edges, true)
+  for (var i = 0; i < b.length; i++) {
+    let v = b[i];
+    let p1 = inames[i];
+    let p2 = inames[v];
+    pairings.push({ first: { name: p1 }, second: { name: p2 } })
+  }
+  for (var p of fixed) {
+    pairings.push(p);
+  }
+  return pairings
+}
 // -----------------------------------------------------
 // King of the hill pairing.
 
@@ -2033,7 +2079,7 @@ function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings", "Stats");
 }
 
-// export {
-//   makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
-//   standingsAfterRound, runPairings, Repeats, Starts
-// };
+export {
+  makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
+  standingsAfterRound, runPairings, Repeats, Starts
+};
