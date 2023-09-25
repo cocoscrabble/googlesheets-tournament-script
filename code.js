@@ -387,7 +387,7 @@ function makeRoundPairings(rows) {
         quads[pairing] = [];
       }
       quads[pairing].push(round);
-    } else if (pairing == "RAND") {
+    } else if (pairing.startsWith("RAND")) {
       rounds[round] = { round: round, type: pairing, start: round };
     } else if (pairing.startsWith("R")) {
       if (round_robins[pairing] === undefined) {
@@ -409,21 +409,21 @@ function makeRoundPairings(rows) {
   }
   for (const q of Object.keys(quads)) {
     const quad = quads[q];
-    for (i = 0; i < quad.length; i++) {
+    for (var i = 0; i < quad.length; i++) {
       round = quad[i];
       rounds[round] = { round: round, type: q, start: quad[0], pos: i + 1 }
     }
   }
   for (const r of Object.keys(round_robins)) {
     const rr = round_robins[r];
-    for (i = 0; i < rr.length; i++) {
+    for (var i = 0; i < rr.length; i++) {
       round = rr[i];
       rounds[round] = { round: round, type: "R", start: rr[0], pos: i + 1 }
     }
   }
   for (const r of Object.keys(double_round_robins)) {
     const rr = double_round_robins[r];
-    for (i = 0; i < rr.length; i++) {
+    for (var i = 0; i < rr.length; i++) {
       round = rr[i];
       rounds[round] = { round: round, type: "DR", start: rr[0], pos: i + 1 }
     }
@@ -576,7 +576,7 @@ function getCurrentEntrantsRanking(res, entrants, standings) {
   var newcomers = entrants.seeding.filter(p => existing.indexOf(p.name) == -1);
   newcomers = newcomers.map(p => res.getPlayerResults(p.name));
   console.log("newcomers:", newcomers);
-  all = ps.concat(newcomers);
+  var all = ps.concat(newcomers);
   return all
 }
 
@@ -1919,6 +1919,61 @@ function outputStatistics(statistics_sheet, res, entrants) {
   outputRange.setValues(out);
 }
 
+function getLastRound(res, round_pairings) {
+  // Find the last round we can pair
+  var round_ids = res.roundIds();
+  console.log("round ids:", round_ids);
+  var last_result = Math.max(...round_ids);
+  var last_round = 0;
+  for (var r of Object.values(round_pairings)) {
+    if ((r.start - 1 <= last_result) ||
+      (r.type == "R" && r.start - 1 <= last_round)) {
+      console.log("Pairing round", r, "based on round", r.start);
+      last_round = r.round;
+    }
+  }
+  console.log("Last round", last_round);
+  return last_round;
+}
+
+function runPairings(res, entrants, round_pairings, starts) {
+  var repeats = new Repeats();
+  var round_ids = res.roundIds();
+  BYES.reset();
+  var all_pairings = [];
+  var last_round = getLastRound(res, round_pairings);
+  for (var i = 0; i < last_round; i++) {
+    var round = i + 1;
+    var rp = round_pairings[round];
+    var pairings;
+    if ((round < round_ids.length) && res.isRoundComplete(round)) {
+      pairings = res.extractPairings(round)
+      for (var p of pairings) {
+        starts.register(p, round);
+      }
+    } else {
+      for (var k of Object.keys(res.players)) {
+        var b = BYES.get(k);
+        if (b > 0) {
+          console.log(`byes for ${k}: ${b}`);
+        }
+      }
+      pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
+      for (var p of pairings) {
+        var p1_first = starts.add(p.first.name, p.second.name, round);
+        p.first.start = p1_first;
+        p.second.start = !p1_first;
+      }
+    }
+    for (var p of pairings) {
+      BYES.update(p);
+      p.repeats = repeats.add(p.first.name, p.second.name);
+    }
+    all_pairings.push(pairings);
+  }
+  return all_pairings;
+}
+
 function processSheet(
   input_sheet_label, standings_sheet_label, pairing_sheet_label, text_pairing_sheet_label,
   statistics_sheet_label
@@ -1956,20 +2011,6 @@ function processSheet(
   var round_pairings = collectRoundPairings();
   console.log("round pairings:", round_pairings);
 
-  // Find the last round we can pair
-  var round_ids = res.roundIds();
-  console.log("round ids:", round_ids);
-  var last_result = Math.max(...round_ids);
-  var last_round = 0;
-  for (var r of Object.values(round_pairings)) {
-    if ((r.start - 1 <= last_result) ||
-      (r.type == "R" && r.start - 1 <= last_round)) {
-      console.log("Pairing round", r, "based on round", r.start);
-      last_round = r.round;
-    }
-  }
-  console.log("Last round", last_round);
-
   var pairing_sheet = sheet.getSheetByName(pairing_sheet_label);
   var text_pairing_sheet = sheet.getSheetByName(text_pairing_sheet_label);
 
@@ -1977,39 +2018,13 @@ function processSheet(
   pairing_sheet.clearContents();
   text_pairing_sheet.clearContents();
 
-  var row = 2;
-  var repeats = new Repeats();
   var starts = new Starts(res, entrants);
-  BYES.reset();
-  for (var i = 0; i < last_round; i++) {
-    var round = i + 1;
-    var rp = round_pairings[round];
-    console.log("writing pairings for round:", round, rp);
-    var pairings;
-    if ((round < round_ids.length) && res.isRoundComplete(round)) {
-      pairings = res.extractPairings(round)
-      for (var p of pairings) {
-        starts.register(p, round);
-      }
-    } else {
-      for (var k of Object.keys(res.players)) {
-        var b = BYES.get(k);
-        if (b > 0) {
-          console.log(`byes for ${k}: ${b}`);
-        }
-      }
-      pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
-      for (var p of pairings) {
-        var p1_first = starts.add(p.first.name, p.second.name, round);
-        p.first.start = p1_first;
-        p.second.start = !p1_first;
-      }
-    }
-    for (var p of pairings) {
-      BYES.update(p);
-      p.repeats = repeats.add(p.first.name, p.second.name);
-    }
+  var all_pairings = runPairings(res, entrants, round_pairings, starts);
+  var row = 2;
+  var i = 0;
+  for (var pairings of all_pairings) {
     outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, i, row);
+    i += 1;
     row += pairings.length + 2;
   }
 }
@@ -2020,7 +2035,5 @@ function calculateStandings() {
 
 // export {
 //   makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
-//   standingsAfterRound
+//   standingsAfterRound, runPairings, Repeats, Starts
 // };
-
-
