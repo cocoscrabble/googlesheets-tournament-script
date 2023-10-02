@@ -725,7 +725,9 @@ function pairRandomNoRepeats(results, entrants, repeats, round) {
     let v = b[i];
     let p1 = inames[i];
     let p2 = inames[v];
-    pairings.push({ first: { name: p1 }, second: { name: p2 } })
+    if (p1 < p2) {
+      pairings.push({ first: { name: p1 }, second: { name: p2 } })
+    }
   }
   for (var p of fixed) {
     pairings.push(p);
@@ -812,7 +814,7 @@ function groupPositionPairs(group, pos) {
 
 function pairGroupsAtPosition(groups, pos) {
   var pairings = [];
-  for (i = 0; i < groups.length; i++) {
+  for (var i = 0; i < groups.length; i++) {
     const group = groups[i];
     var p = groupPositionPairs(group, pos);
     for (let [a, b] of p) {
