@@ -95,11 +95,14 @@ class Results {
     console.log("extracting pairings for round:", round)
     console.log(this.rounds[round])
     for (const game_result of this.rounds[round]) {
-      var pairing = {
-        first: {name: game_result.winner, start: game_result.winner_first},
-        second: {name: game_result.loser, start: !game_result.winner_first}
+      var p = {
+        first: {name: game_result.winner},
+        second: {name: game_result.loser}
       }
-      pairings.push(pairing);
+      if (!game_result.winner_first) {
+        [p.first, p.second] = [p.second, p.first]
+      }
+      pairings.push(p);
     }
     return pairings
   }
@@ -181,7 +184,7 @@ class Starts {
     const name2 = pairing.second.name;
     this.init(name1);
     this.init(name2);
-    this._record(name1, name2, round, pairing.first.start);
+    this._record(name1, name2, round, true);
   }
 
   add(name1, name2, round) {
@@ -1826,8 +1829,7 @@ function outputPlayerStandings(standing_sheet, score_dict, entrants, ratings) {
   outputRange.setValues(out);
 }
 
-function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, round, start_row) {
-  console.log("pairings:", pairings);
+function formatPairings(pairings, entrants, round) {
   var vtable = 1;
   var used = new Set();
   for (var v of Object.values(entrants.tables)) {
@@ -1846,10 +1848,10 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
       table = vtable;
       vtable++;
     }
-    var first = x.first.start ? x.first.name : x.second.name;
-    var second = x.first.start ? x.second.name : x.first.name;
+    var first = x.first.name;
+    var second = x.second.name;
     var rep = x.repeats > 1 ? `(rep ${x.repeats})` : "";
-    var start = `${starts.starts[first]} - ${starts.starts[second]}`
+    var start = `${x.first.starts} - ${x.second.starts}`
     return [
       table,
       entrants.entrants[first] || first,
@@ -1859,6 +1861,12 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
     ]
   })
   out = out.sort((a, b) => parseInt(a) - parseInt(b));
+  return out;
+}
+
+function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, round, start_row) {
+  console.log("pairings:", pairings);
+  var out = formatPairings(pairings, entrants, starts, round);
   var ncols = out[0].length
   var text_pairings = []
   var round_header = "ROUND " + (round + 1);
@@ -1998,6 +2006,9 @@ function runPairings(res, entrants, round_pairings, starts) {
       pairings = res.extractPairings(round)
       for (var p of pairings) {
         starts.register(p, round);
+        // Add number of starts to the pairing
+        p.first.starts = starts.starts[p.first.name];
+        p.second.starts = starts.starts[p.second.name];
       }
     } else {
       for (var k of Object.keys(res.players)) {
@@ -2008,9 +2019,15 @@ function runPairings(res, entrants, round_pairings, starts) {
       }
       pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
       for (var p of pairings) {
+        // See who starts in this round
         var p1_first = starts.add(p.first.name, p.second.name, round);
-        p.first.start = p1_first;
-        p.second.start = !p1_first;
+        // Make p.first the first player
+        if (!p1_first) {
+          [p.first, p.second] = [p.second, p.first]
+        }
+        // Add number of starts to the pairing
+        p.first.starts = starts.starts[p.first.name];
+        p.second.starts = starts.starts[p.second.name];
       }
     }
     for (var p of pairings) {
@@ -2083,5 +2100,6 @@ function calculateStandings() {
 
 export {
   makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
-  standingsAfterRound, runPairings, Repeats, Starts
+  standingsAfterRound, runPairings, formatPairings,
+  Repeats, Starts
 };
