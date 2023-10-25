@@ -1873,7 +1873,8 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   var pairing_string = round_header + ": " + pairing_strings.join(" | ");
   text_pairings.push([pairing_string])
   var header = [
-    [round_header, "", "", "", "Firsts"],
+    [round_header, "", "", "", ""],
+    ["Table", "1st Player", "2nd Player", "", "Firsts"],
   ];
   out = header.concat(out);
   // Write out standings starting in cell A2
@@ -1883,7 +1884,10 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   outputRange.setValues(out);
   outputRange.setFontWeight("normal");
   var headerRange = pairing_sheet.getRange(outputRow, outputCol, header.length, ncols);
+  const headerbg = "#d9d2e9"
   headerRange.setFontWeight("bold");
+  headerRange.setBackground(headerbg);
+  headerRange.setBorder(true, true, true, true, true, true, headerbg, null);
   var textPairingRange = text_pairing_sheet.getRange(round + 1, 1, 1, 1);
   textPairingRange.setValues(text_pairings);
 }
@@ -2090,7 +2094,7 @@ function processSheet(
   for (var pairings of all_pairings) {
     outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, starts, i, row);
     i += 1;
-    row += pairings.length + 2;
+    row += pairings.length + 3;
   }
 }
 
@@ -2104,4 +2108,4 @@ export {
   Repeats, Starts
 };
 
-// Version: 2023-10-24 v2
+// Version: 2023-10-25
