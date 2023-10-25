@@ -1877,17 +1877,26 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
     ["Table", "1st Player", "2nd Player", "", "Firsts"],
   ];
   out = header.concat(out);
+  out = out.concat([["", "", "", "", ""]]);
   // Write out standings starting in cell A2
   var outputRow = start_row;
   var outputCol = 1;
   var outputRange = pairing_sheet.getRange(outputRow, outputCol, out.length, ncols);
   outputRange.setValues(out);
   outputRange.setFontWeight("normal");
-  var headerRange = pairing_sheet.getRange(outputRow, outputCol, header.length, ncols);
-  const headerbg = "#d9d2e9"
-  headerRange.setFontWeight("bold");
-  headerRange.setBackground(headerbg);
-  headerRange.setBorder(true, true, true, true, true, true, headerbg, null);
+  outputRange.setBorder(true, true, true, true, true, true, "white", null);
+  var header1Range = pairing_sheet.getRange(outputRow, outputCol, 1, ncols);
+  var header2Range = pairing_sheet.getRange(outputRow + 1, outputCol, 1, ncols);
+  const header1bg = "#531882"
+  const header2bg = "#daabff"
+  header1Range.setFontWeight("bold");
+  header1Range.setFontColor("white");
+  header1Range.setBackground(header1bg);
+  header1Range.setBorder(true, true, true, true, true, true, header1bg, null);
+  header2Range.setFontColor("black");
+  header2Range.setFontWeight("bold");
+  header2Range.setBackground(header2bg);
+  header2Range.setBorder(true, true, true, true, true, true, header2bg, null);
   var textPairingRange = text_pairing_sheet.getRange(round + 1, 1, 1, 1);
   textPairingRange.setValues(text_pairings);
 }
@@ -2084,7 +2093,7 @@ function processSheet(
   var text_pairing_sheet = sheet.getSheetByName(text_pairing_sheet_label);
 
   // Clear pairing sheets
-  pairing_sheet.clearContents();
+  pairing_sheet.clear();
   text_pairing_sheet.clearContents();
 
   var starts = new Starts(res, entrants);
@@ -2096,6 +2105,7 @@ function processSheet(
     i += 1;
     row += pairings.length + 3;
   }
+  pairing_sheet.getDataRange().setFontFamily("Proxima Nova").setFontSize(13);
 }
 
 function calculateStandings() {
@@ -2108,4 +2118,4 @@ export {
   Repeats, Starts
 };
 
-// Version: 2023-10-25
+// Version: 2023-10-25 v2
