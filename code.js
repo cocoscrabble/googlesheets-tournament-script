@@ -2103,3 +2103,5 @@ export {
   pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
   Repeats, Starts
 };
+
+// Version: 2023-10-24
