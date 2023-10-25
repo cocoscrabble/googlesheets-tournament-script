@@ -1982,6 +1982,7 @@ function getLastRound(res, round_pairings) {
   var last_round = 0;
   for (var r of Object.values(round_pairings)) {
     if ((r.start - 1 <= last_result) ||
+      (r.type.startsWith("RAND") && r.round - last_round == 1) ||
       (r.type == "R" && r.start - 1 <= last_round)) {
       console.log("Pairing round", r, "based on round", r.start);
       last_round = r.round;
