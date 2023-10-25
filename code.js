@@ -465,7 +465,7 @@ function makeFixedPairings(rows) {
       fp[round] = [];
     }
     fp[round].push({first: p1, second: p2})
-    if (entry[3] !== undefined && `${entry[3]}`.toLowerCase() != "no"){
+    if (`${entry[3]}`.toLowerCase().trim() == "yes") {
       fs[[round, p1.name]] = true;
     }
   }
@@ -2104,4 +2104,4 @@ export {
   Repeats, Starts
 };
 
-// Version: 2023-10-24
+// Version: 2023-10-24 v2
