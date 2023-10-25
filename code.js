@@ -465,9 +465,8 @@ function makeFixedPairings(rows) {
       fp[round] = [];
     }
     fp[round].push({first: p1, second: p2})
-    if (entry[3] !== undefined){
-      var sp = parseFixedPairing(entry[3]);
-      fs[[round, sp.name]] = true;
+    if (entry[3] !== undefined && `${entry[3]}`.toLowerCase() != "no"){
+      fs[[round, p1.name]] = true;
     }
   }
   return new Fixed(fp, fs);
@@ -692,13 +691,13 @@ function pairRandom(standings, entrants, round) {
 }
 
 function pairRandomNoRepeats(results, entrants, repeats, round) {
-  console.log("random no repeats pairing for round", round)
+  console.log("random no repeats pairing for round", round + 1)
   var players = standingsAfterRound(results, entrants, round);
   if (round <= 0) {
     return pairRandom(players, entrants, round);
   }
   var bracket, fixed;
-  [bracket, fixed] = removeFixedPairings(players, entrants, round);
+  [bracket, fixed] = removeFixedPairings(players, entrants, round + 1);
   var pairings = []
   var edges = [];
   var names = {};
@@ -2099,7 +2098,7 @@ function calculateStandings() {
 }
 
 export {
-  makeEntrants, makeRoundPairings, makeResults, pairingsAfterRound,
-  standingsAfterRound, runPairings, formatPairings,
+  makeEntrants, makeRoundPairings, makeResults, makeFixedPairings,
+  pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
   Repeats, Starts
 };
