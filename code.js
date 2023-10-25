@@ -1885,6 +1885,7 @@ function outputPairings(pairing_sheet, text_pairing_sheet, pairings, entrants, s
   outputRange.setValues(out);
   outputRange.setFontWeight("normal");
   outputRange.setBorder(true, true, true, true, true, true, "white", null);
+  outputRange.setHorizontalAlignment("left");
   var header1Range = pairing_sheet.getRange(outputRow, outputCol, 1, ncols);
   var header2Range = pairing_sheet.getRange(outputRow + 1, outputCol, 1, ncols);
   const header1bg = "#531882"
@@ -2118,4 +2119,4 @@ export {
   Repeats, Starts
 };
 
-// Version: 2023-10-25 v2
+// Version: 2023-10-25 v3
