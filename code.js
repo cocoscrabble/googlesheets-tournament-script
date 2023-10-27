@@ -2031,8 +2031,12 @@ function runPairings(res, entrants, round_pairings, starts) {
           console.log(`byes for ${k}: ${b}`);
         }
       }
-      pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
-      for (var p of pairings) {
+      var orig_pairings = pairingsAfterRound(res, entrants, repeats, round_pairings, i);
+      pairings = []
+      for (var p0 of orig_pairings) {
+        // Copy the object so we don't keep modifying the same reference
+        // (pairingsAfterRound pushes player references into the output pairs)
+        var p = {first: {name: p0.first.name}, second: {name: p0.second.name}}
         // See who starts in this round
         var p1_first = starts.add(p.first.name, p.second.name, round);
         // Make p.first the first player
@@ -2042,6 +2046,7 @@ function runPairings(res, entrants, round_pairings, starts) {
         // Add number of starts to the pairing
         p.first.starts = starts.starts[p.first.name];
         p.second.starts = starts.starts[p.second.name];
+        pairings.push(p);
       }
     }
     for (var p of pairings) {
@@ -2119,4 +2124,4 @@ export {
   Repeats, Starts
 };
 
-// Version: 2023-10-25 v3
+// Version: 2023-10-26
