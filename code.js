@@ -115,6 +115,7 @@ class Entrants {
     this.tables = tables
     this.fixed_pairings = fixed_pairings
     this.fixed_starts = fixed_starts
+    this.settings = new Settings()
   }
 
   addEntrant(e) {
@@ -294,6 +295,13 @@ function loserResults(game_result) {
     opp: game_result.winner,
     opp_score: game_result.winner_score,
     start: start,
+  }
+}
+
+class Settings {
+  constructor() {
+    this.swiss_weight = 30
+    this.swiss_distance = 10
   }
 }
 
@@ -480,6 +488,33 @@ function collectFixedPairings() {
   var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
   var data = results.slice(0, last_row - 1);
   return makeFixedPairings(data);
+}
+
+function makeSettings(rows) {
+  var ret = new Settings();
+  for (var entry of rows) {
+    const k = entry[0];
+    const v = entry[1];
+    const val = parseInt(v);
+    if (!isNaN(val)) {
+      if (k == "swiss_distance") {
+        ret.swiss_distance = val
+      } else if (k == "swiss_weight") {
+        ret.swiss_weight = val
+      }
+    }
+  }
+  return ret;
+}
+
+function collectSettings() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var result_sheet = sheet.getSheetByName("Settings");
+  var result_range = result_sheet.getRange("D2:E");
+  var results = result_range.getValues();
+  var last_row = result_sheet.getRange("D2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+  var data = results.slice(0, last_row - 1);
+  return makeSettings(data);
 }
 
 // -----------------------------------------------------
@@ -1671,7 +1706,7 @@ function pairSwissTop(groups, repeats, nrep) {
   return candidates
 }
 
-function pairCandidates(bracket) {
+function pairCandidates(bracket, settings) {
   // console.log("candidates", candidates);
   var edges = [];
   var names = {};
@@ -1685,13 +1720,14 @@ function pairCandidates(bracket) {
   }
   // console.log("names", names)
   // console.log("inames", inames)
+  console.log("swiss settings:", settings)
 
   for (var player of bracket) {
     for (var m of player) {
       const [repeats, distance, p1, p2] = m;
       // Don't pair candidates too far apart
-      if (distance < 11) {
-        let weight = -(30 * repeats + distance);
+      if (distance < settings.swiss_distance) {
+        let weight = -(settings.swiss_weight * repeats + distance);
         let v1 = names[p1];
         let v2 = names[p2];
         edges.push([v1, v2, weight])
@@ -1757,7 +1793,7 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
         continue;
       }
     } else {
-      var pairs = pairCandidates(candidates)
+      var pairs = pairCandidates(candidates, entrants.settings)
       if (pairs.some(e => e.second.name === undefined)) {
         console.log("unpaired!")
         nrep += 1;
@@ -2076,6 +2112,10 @@ function processSheet(
   entrants.fixed_pairings = fp.pairings;
   entrants.fixed_starts = fp.starts;
 
+  var settings = collectSettings();
+  console.log("collected settings:", settings)
+  entrants.settings = settings;
+
   console.log("processed results");
 
   if (entrants.seeding.length % 2 != 0) {
@@ -2118,10 +2158,10 @@ function calculateStandings() {
   processSheet("Results", "Standings", "Pairings", "Text Pairings", "Stats");
 }
 
-export {
-  makeEntrants, makeRoundPairings, makeResults, makeFixedPairings,
-  pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
-  Repeats, Starts
-};
+// export {
+//   makeEntrants, makeRoundPairings, makeResults, makeFixedPairings,
+//   pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
+//   Repeats, Starts
+// };
 
-// Version: 2023-10-26
+// Version: 2024-04-16
