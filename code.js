@@ -650,7 +650,9 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   } else if (pair.type == "CH") {
     return pairCharlottesville(entrants, round);
   } else if (pair.type == "SPR") {
-    return pairSwissPlusRandom(res, entrants, repeats, round);
+    return pairSwissPlusRandom(res, entrants, repeats, round, round + 1);
+  } else if (pair.type == "STPR") {
+    return pairSwissPlusRandom(res, entrants, repeats, round - 1, round + 1);
   } else if (pair.type == "S") {
     return pairSwiss(res, entrants, repeats, round, round + 1);
   } else if (pair.type == "ST") {
@@ -779,14 +781,14 @@ function pairRandomNoRepeats(results, entrants, repeats, round) {
   return pairings
 }
 
-function pairSwissPlusRandom(results, entrants, repeats, round) {
-  console.log("swiss + randnr pairing for round", round + 1)
+function pairSwissPlusRandom(results, entrants, repeats, round, for_round) {
+  console.log("swiss + randnr pairing based on round", round)
   var players = standingsAfterRound(results, entrants, round);
   if (round <= 0) {
     return pairSwissInitial(players, entrants, round);
   }
   var field, fixed;
-  [field, fixed] = removeFixedPairings(players, entrants, round + 1);
+  [field, fixed] = removeFixedPairings(players, entrants, for_round);
   var n = entrants.settings.swiss_distance;
   var swiss_players = field.slice(0, n);
   var rand_players = field.slice(n);
@@ -2212,4 +2214,4 @@ function calculateStandings() {
 //   Repeats, Starts
 // };
 
-// Version: 2024-07-22
+// Version: 2024-07-22-v2
