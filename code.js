@@ -649,6 +649,8 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
     return pairEvansQuads(standings, pair.pos);
   } else if (pair.type == "CH") {
     return pairCharlottesville(entrants, round);
+  } else if (pair.type == "SPR") {
+    return pairSwissPlusRandom(res, entrants, repeats, round);
   } else if (pair.type == "S") {
     return pairSwiss(res, entrants, repeats, round, round + 1);
   } else if (pair.type == "ST") {
@@ -725,14 +727,7 @@ function pairRandom(standings, entrants, round) {
   return pairings
 }
 
-function pairRandomNoRepeats(results, entrants, repeats, round) {
-  console.log("random no repeats pairing for round", round + 1)
-  var players = standingsAfterRound(results, entrants, round);
-  if (round <= 0) {
-    return pairRandom(players, entrants, round);
-  }
-  var bracket, fixed;
-  [bracket, fixed] = removeFixedPairings(players, entrants, round + 1);
+function pairRandomNoRepeatsHelper(bracket, repeats) {
   var pairings = []
   var edges = [];
   var names = {};
@@ -766,11 +761,59 @@ function pairRandomNoRepeats(results, entrants, repeats, round) {
       pairings.push({ first: { name: p1 }, second: { name: p2 } })
     }
   }
+  return pairings
+}
+
+function pairRandomNoRepeats(results, entrants, repeats, round) {
+  console.log("random no repeats pairing for round", round + 1)
+  var players = standingsAfterRound(results, entrants, round);
+  if (round <= 0) {
+    return pairRandom(players, entrants, round);
+  }
+  var bracket, fixed;
+  [bracket, fixed] = removeFixedPairings(players, entrants, round + 1);
+  var pairings = pairRandomNoRepeatsHelper(bracket, repeats)
   for (var p of fixed) {
     pairings.push(p);
   }
   return pairings
 }
+
+function pairSwissPlusRandom(results, entrants, repeats, round) {
+  console.log("swiss + randnr pairing for round", round + 1)
+  var players = standingsAfterRound(results, entrants, round);
+  if (round <= 0) {
+    return pairSwissInitial(players, entrants, round);
+  }
+  var field, fixed;
+  [field, fixed] = removeFixedPairings(players, entrants, round + 1);
+  var n = entrants.settings.swiss_distance;
+  var swiss_players = field.slice(0, n);
+  var rand_players = field.slice(n);
+
+  console.log("pairing swiss for top", n, "players")
+  var swiss_paired = pairSwissHelper(swiss_players, repeats, entrants)
+  console.log("pairing random for bottom", field.length - n, "players")
+  var random_pairings = pairRandomNoRepeatsHelper(rand_players, repeats)
+  var out = []
+  for (const group of swiss_paired) {
+    for (var p of group) {
+      if (p.first.name < p.second.name) {
+        p.repeats = repeats.get(p.first.name, p.second.name)
+        out.push(p)
+      }
+    }
+  }
+  for (var p of random_pairings) {
+    out.push(p);
+  }
+  for (var p of fixed) {
+    out.push(p);
+  }
+  console.log("out:", out)
+  return out
+}
+
 // -----------------------------------------------------
 // King of the hill pairing.
 
@@ -1008,7 +1051,7 @@ Edmonds.prototype.maxWeightMatching = function () {
     var augmented = false;
     while (true) {
       //console.log('DEBUG: SUBSTAGE');
-      while (this.queue.length > 0 && !augmented) {
+while (this.queue.length > 0 && !augmented) {
         v = this.queue.pop();
         //console.log('DEBUG: POP ', 'v=' + v);
         //console.assert(this.label[this.inBlossom[v]] == 1);
@@ -1750,15 +1793,7 @@ function pairCandidates(bracket, settings) {
   return pairings
 }
 
-function pairSwiss(results, entrants, repeats, round, for_round, ) {
-  console.log("swiss pairing based on round", round)
-  if (round <= 0) {
-    return pairSwissInitial(entrants.seeding);
-  }
-  //console.log("repeats for round", round, repeats.matches)
-  var players = standingsAfterRound(results, entrants, round);
-  var fixed;
-  [players, fixed] = removeFixedPairings(players, entrants, for_round);
+function pairSwissHelper(players, repeats, entrants) {
   var groups = calculateScoreGroups(players);
   var dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
   // console.log("groups:", dgroups)
@@ -1807,6 +1842,19 @@ function pairSwiss(results, entrants, repeats, round, for_round, ) {
       }
     }
   }
+  return paired;
+}
+
+function pairSwiss(results, entrants, repeats, round, for_round) {
+  console.log("swiss pairing based on round", round)
+  if (round <= 0) {
+    return pairSwissInitial(entrants.seeding);
+  }
+  //console.log("repeats for round", round, repeats.matches)
+  var players = standingsAfterRound(results, entrants, round);
+  var fixed;
+  [players, fixed] = removeFixedPairings(players, entrants, for_round);
+  var paired = pairSwissHelper(players, repeats, entrants);
   console.log("fixed:", fixed)
   paired.push(fixed);
   var out = []
@@ -2164,4 +2212,4 @@ function calculateStandings() {
 //   Repeats, Starts
 // };
 
-// Version: 2024-04-16
+// Version: 2024-07-22
