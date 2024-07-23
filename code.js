@@ -93,7 +93,7 @@ class Results {
   extractPairings(round) {
     var pairings = [];
     console.log("extracting pairings for round:", round)
-    console.log(this.rounds[round])
+    // console.log(this.rounds[round])
     for (const game_result of this.rounds[round]) {
       var p = {
         first: {name: game_result.winner},
@@ -412,7 +412,7 @@ function makeRoundPairings(rows) {
       double_round_robins[pairing].push(round);
     } else if (pairing == "CH") {
       rounds[round] = { round: round, type: pairing, start: 0 };
-    } else if (pairing == "ST") {
+    } else if (pairing == "ST" || pairing == "STPR") {
       rounds[round] = { round: round, type: pairing, start: round - 1 };
     } else {
       rounds[round] = { round: round, type: pairing, start: round };
@@ -1811,7 +1811,7 @@ function pairSwissHelper(players, repeats, entrants) {
   }
   while (groups.length > 0) {
     dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
-    console.log("groups:", dgroups)
+    // console.log("groups:", dgroups)
     candidates = pairSwissTop(groups, repeats, nrep)
     //console.log("candidates:", candidates)
     if (candidates.some(e => e.length == 0)) {
@@ -2214,4 +2214,4 @@ function calculateStandings() {
 //   Repeats, Starts
 // };
 
-// Version: 2024-07-22-v2
+// Version: 2024-07-22-v3
