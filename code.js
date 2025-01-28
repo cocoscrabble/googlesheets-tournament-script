@@ -1715,6 +1715,7 @@ function mergeBottom(groups) {
   console.log("merging bottom two groups");
   if (groups.length == 1) {
     console.log("only one group, bailing out!")
+    return;
   }
   var last = groups.length - 1;
   groups[last - 1] = groups[last - 1].concat(groups[last]);
