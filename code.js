@@ -1865,6 +1865,10 @@ function pairSwiss(results, entrants, repeats, round, for_round) {
       if (p.first.name < p.second.name) {
         p.repeats = repeats.get(p.first.name, p.second.name)
         out.push(p)
+      } else if (p.first.name == "Bye") {
+        // We only have one pairing for this, so always push it.
+        p.repeats = repeats.get(p.first.name, p.second.name)
+        out.push(p)
       }
     }
   }
@@ -2214,4 +2218,4 @@ function calculateStandings() {
 //   Repeats, Starts
 // };
 
-// Version: 2024-07-22-v3
+// Version: 2025-01-27
