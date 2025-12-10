@@ -401,7 +401,7 @@ function makeRoundPairings(rows) {
     // col A = entry[0], B = 1
     var round = parseInt(entry[0]);
     var pairing = entry[1];
-    if (pairing.startsWith("Q")) {
+    if (pairing.startsWith("Q") || pairing.startsWith("SIX")) {
       if (quads[pairing] === undefined) {
         quads[pairing] = [];
       }
@@ -655,6 +655,9 @@ function pairingsAfterRound(res, entrants, repeats, round_pairings, round) {
   } else if (pair.type.startsWith("QE")) {
     standings = standingsAfterRound(res, entrants, pair.start - 1);
     return pairEvansQuads(standings, pair.pos);
+  } else if (pair.type.startsWith("SIX")) {
+    standings = standingsAfterRound(res, entrants, pair.start - 1);
+    return pairSixes(standings, pair.pos);
   } else if (pair.type == "CH") {
     return pairCharlottesville(entrants, round);
   } else if (pair.type == "SPR") {
@@ -884,14 +887,21 @@ function pairQoth(standings, entrants, round) {
 const Pairings4 = [
   [[0, 3], [1, 2]],
   [[0, 2], [1, 3]],
+  [[0, 1], [2, 3]],
+  // Repeat if we are doing a hex
+  [[0, 3], [1, 2]],
+  [[0, 2], [1, 3]],
   [[0, 1], [2, 3]]
 ]
 
 // Incomplete round robin for 6 players, 0-5
-const Pairings6 = [
-  [[0, 1], [2, 3], [4, 5]],
-  [[0, 2], [3, 4], [1, 5]],
-  [[0, 3], [1, 4], [2, 5]]
+const Pairings6 =
+[
+  [[0, 5], [1, 4], [2, 3]],
+  [[0, 4], [5, 3], [1, 2]],
+  [[0, 3], [4, 2], [5, 1]],
+  [[0, 2], [3, 1], [4, 5]],
+  [[0, 1], [2, 5], [3, 4]]
 ]
 
 function groupPositionPairs(group, pos) {
@@ -924,10 +934,33 @@ function getLastQuadPosition(standings) {
   }
 }
 
+function getLastHexPosition(standings) {
+  var leftover = standings.length % 6;
+  console.log("leftover:", leftover);
+  if (leftover == 0) {
+    return standings.length
+  } else if (leftover == 2) {
+    return standings.length - 8
+  } else if (leftover == 4) {
+    return standings.length - 4
+  }
+}
+
 function maybeAddHex(quads, standings, max) {
   // we have a leftover hex, add it to the quads
   if (max < standings.length) {
     quads.push(standings.slice(max, standings.length))
+  }
+}
+
+function maybeAddQuads(hexes, standings, max) {
+  // we have leftover players not in hexes, add them in quads
+  var diff = standings.length - max;
+  if (diff == 8) {
+    hexes.push(standings.slice(max, max + 4));
+    hexes.push(standings.slice(max + 4, standings.length));
+  } else if (diff == 4) {
+    hexes.push(standings.slice(max, max + 4));
   }
 }
 
@@ -989,6 +1022,36 @@ function pairEvansQuads(standings, pos) {
   }
   maybeAddHex(quads, standings, max);
   return pairGroupsAtPosition(quads, pos);
+}
+
+function pairSixes(standings, pos) {
+  // Like evans quads, but groups of six
+  var hexes = [];
+  var max = getLastHexPosition(standings);
+  var stride = max / 6;
+  for (var i = 0; i < stride; i++) {
+    hexes[i] = [];
+  }
+
+  // Generate new standings snake-style
+  var new_standings = []
+  var flip = false;
+  for (var i = 0; i < max; i += stride) {
+    var slice = standings.slice(i, i + stride);
+    if (flip) {
+      slice.reverse();
+    }
+    flip = !flip;
+    new_standings = new_standings.concat(slice)
+  }
+
+  // Make hexes from the new standings
+  for (var i = 0; i < max; i++) {
+    var hex = i % stride;
+    hexes[hex].push(new_standings[i]);
+  }
+  maybeAddQuads(hexes, standings, max);
+  return pairGroupsAtPosition(hexes, pos);
 }
 
 // -----------------------------------------------------
@@ -2256,7 +2319,7 @@ function calculateStandings() {
 // export {
 //   makeEntrants, makeRoundPairings, makeResults, makeFixedPairings,
 //   pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
-//   Repeats, Starts
+//   Repeats, Starts, Diags
 // };
 
-// Version: 2025-01-27
+// Version: 2025-12-10
