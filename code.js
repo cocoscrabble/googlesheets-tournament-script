@@ -305,6 +305,14 @@ class Settings {
   }
 }
 
+class Diags {
+  constructor() {
+    this.round_status = {}
+    this.rounds = {}
+    this.pairs = {}
+  }
+}
+
 // -----------------------------------------------------
 // Read data from spreadsheet
 
@@ -2097,7 +2105,7 @@ function getLastRound(res, round_pairings) {
   return last_round;
 }
 
-function runPairings(res, entrants, round_pairings, starts) {
+function runPairings(res, entrants, round_pairings, starts, diags) {
   var repeats = new Repeats();
   var round_ids = res.roundIds();
   BYES.reset();
@@ -2108,6 +2116,7 @@ function runPairings(res, entrants, round_pairings, starts) {
     var rp = round_pairings[round];
     var pairings;
     if ((round < round_ids.length) && res.isRoundComplete(round)) {
+      diags.round_status[round] = "complete";
       pairings = res.extractPairings(round)
       for (var p of pairings) {
         starts.register(p, round);
@@ -2116,6 +2125,7 @@ function runPairings(res, entrants, round_pairings, starts) {
         p.second.starts = starts.starts[p.second.name];
       }
     } else {
+      diags.round_status[round] = "incomplete";
       for (var k of Object.keys(res.players)) {
         var b = BYES.get(k);
         if (b > 0) {
@@ -2149,6 +2159,30 @@ function runPairings(res, entrants, round_pairings, starts) {
   return all_pairings;
 }
 
+function outputDiags(diags_sheet, diags) {
+  var out = [['Round', 'Status']];
+  for (const [round, stat] of Object.entries(diags.round_status)) {
+    out.push([`${round}`, stat]);
+  }
+  // Write out standings starting in cell A1
+  var outputRow = 1;
+  var outputCol = 1;
+  if (out.length == 0) {
+    return;
+  }
+  var outputRange = diags_sheet.getRange(outputRow, outputCol, out.length, out[0].length);
+  outputRange.setValues(out);
+}
+
+function getOrCreateSheet(name) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var ret = sheet.getSheetByName(name);
+  if (ret == null) {
+    ret = sheet.insertSheet(name);
+  }
+  return ret
+}
+
 function processSheet(
   input_sheet_label, standings_sheet_label, pairing_sheet_label, text_pairing_sheet_label,
   statistics_sheet_label
@@ -2178,6 +2212,8 @@ function processSheet(
     return;
   }
 
+  var diags = new Diags();
+
   // Write out the standings
   var standings_sheet = sheet.getSheetByName(standings_sheet_label);
   outputPlayerStandings(standings_sheet, res.players, entrants, ratings);
@@ -2198,7 +2234,7 @@ function processSheet(
   text_pairing_sheet.clearContents();
 
   var starts = new Starts(res, entrants);
-  var all_pairings = runPairings(res, entrants, round_pairings, starts);
+  var all_pairings = runPairings(res, entrants, round_pairings, starts, diags);
   var row = 2;
   var i = 0;
   for (var pairings of all_pairings) {
@@ -2207,6 +2243,10 @@ function processSheet(
     row += pairings.length + 3;
   }
   pairing_sheet.getDataRange().setFontFamily("Proxima Nova").setFontSize(13);
+
+  // Write diagnostics
+  var diags_sheet = getOrCreateSheet("Diagnostics");
+  outputDiags(diags_sheet, diags);
 }
 
 function calculateStandings() {
