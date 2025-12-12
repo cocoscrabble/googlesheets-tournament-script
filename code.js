@@ -84,10 +84,18 @@ class Results {
     }));
   }
 
-  isRoundComplete(round) {
-    var n_games = this.rounds[round].length;
-    var n_players = Object.keys(this.players).length;
-    return n_games * 2 == n_players;
+  unplayedGames(round) {
+    var players = new Set(Object.keys(this.players));
+    for (const game of this.rounds[round]) {
+      players.delete(game.winner);
+      players.delete(game.loser);
+    }
+    for (const p of players) {
+      if (p.toLowerCase() == "bye") {
+        players.delete(p)
+      }
+    }
+    return players;
   }
 
   extractPairings(round) {
@@ -2178,7 +2186,8 @@ function runPairings(res, entrants, round_pairings, starts, diags) {
     var round = i + 1;
     var rp = round_pairings[round];
     var pairings;
-    if ((round < round_ids.length) && res.isRoundComplete(round)) {
+    var unplayed = res.unplayedGames(round);
+    if ((round < round_ids.length) && unplayed.size == 0) {
       diags.round_status[round] = "complete";
       pairings = res.extractPairings(round)
       for (var p of pairings) {
@@ -2188,7 +2197,7 @@ function runPairings(res, entrants, round_pairings, starts, diags) {
         p.second.starts = starts.starts[p.second.name];
       }
     } else {
-      diags.round_status[round] = "incomplete";
+      diags.round_status[round] = `incomplete: ${unplayed}`;
       for (var k of Object.keys(res.players)) {
         var b = BYES.get(k);
         if (b > 0) {
