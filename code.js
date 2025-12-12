@@ -86,6 +86,9 @@ class Results {
 
   unplayedGames(round) {
     var players = new Set(Object.keys(this.players));
+    if (this.rounds[round] === undefined) {
+      return players;
+    }
     for (const game of this.rounds[round]) {
       players.delete(game.winner);
       players.delete(game.loser);
