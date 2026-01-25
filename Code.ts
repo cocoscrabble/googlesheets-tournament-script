@@ -1,3 +1,5 @@
+// import {blossom} from "./blossom.js"
+
 function onOpen() {
   // Get the UI object.
   var ui = SpreadsheetApp.getUi();
@@ -327,6 +329,17 @@ class Diags {
 // -----------------------------------------------------
 // Read data from spreadsheet
 
+function collectSheetData(sheet_label, range) {
+  var gs = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = gs.getSheetByName(sheet_label);
+  var data_range = sheet.getRange(range);
+  var values = data_range.getValues();
+  var start = range.split(":")[0]
+  var last_row = sheet.getRange(start).getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
+  var data = values.slice(0, last_row - 1);
+  return data;
+}
+
 function makeResults(rows) {
   // Convert each row into a GameResult object
   var out = []
@@ -351,12 +364,8 @@ function makeResults(rows) {
   return res;
 }
 
-function collectResults(result_sheet) {
-  // Get the results range within the result sheet
-  var result_range = result_sheet.getRange("B2:H");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("B2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var data = results.slice(0, last_row - 1);
+function collectResults() {
+  var data = collectSheetData("Results", "B2:H");
   return makeResults(data);
 }
 
@@ -390,12 +399,7 @@ function makeEntrants(rows) {
 }
 
 function collectEntrants() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("Entrants");
-  var result_range = result_sheet.getRange("A2:E");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var data = results.slice(0, last_row - 1);
+  var data = collectSheetData("Entrants", "A2:E");
   var entrants = makeEntrants(data);
   console.log("Seeding:", entrants.seeding);
   console.log("Entrants:", entrants.entrants);
@@ -462,12 +466,7 @@ function makeRoundPairings(rows) {
 }
 
 function collectRoundPairings() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("Settings");
-  var result_range = result_sheet.getRange("A2:B");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var data = results.slice(0, last_row - 1);
+  var data = collectSheetData("Settings", "A2:B");
   return makeRoundPairings(data);
 }
 
@@ -500,12 +499,7 @@ function makeFixedPairings(rows) {
 }
 
 function collectFixedPairings() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("FixedPairing");
-  var result_range = result_sheet.getRange("A2:D");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("A2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var data = results.slice(0, last_row - 1);
+  var data = collectSheetData("FixedPairing", "A2:D");
   return makeFixedPairings(data);
 }
 
@@ -527,12 +521,7 @@ function makeSettings(rows) {
 }
 
 function collectSettings() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName("Settings");
-  var result_range = result_sheet.getRange("D2:E");
-  var results = result_range.getValues();
-  var last_row = result_sheet.getRange("D2").getDataRegion(SpreadsheetApp.Dimension.ROWS).getLastRow();
-  var data = results.slice(0, last_row - 1);
+  var data = collectSheetData("Settings", "D2:E");
   return makeSettings(data);
 }
 
@@ -1605,28 +1594,24 @@ function outputDiags(diags_sheet, diags) {
 }
 
 function getOrCreateSheet(name) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var ret = sheet.getSheetByName(name);
+  var gs = SpreadsheetApp.getActiveSpreadsheet();
+  var ret = gs.getSheetByName(name);
   if (ret == null) {
-    ret = sheet.insertSheet(name);
+    ret = gs.insertSheet(name);
   }
   return ret
 }
 
-function processSheet(
-  input_sheet_label, standings_sheet_label, pairing_sheet_label, text_pairing_sheet_label,
-  statistics_sheet_label
-) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var result_sheet = sheet.getSheetByName(input_sheet_label);
-
-  var res = collectResults(result_sheet);
+function processSheet(outputs) {
+  var gs = SpreadsheetApp.getActiveSpreadsheet();
+  var res = collectResults();
 
   var entrants = collectEntrants();
   var ratings = {};
   for (var x of entrants.seeding) {
     ratings[x.name] = x.rating
   }
+
   var fp = collectFixedPairings();
   entrants.fixed_pairings = fp.pairings;
   entrants.fixed_starts = fp.starts;
@@ -1645,19 +1630,19 @@ function processSheet(
   var diags = new Diags();
 
   // Write out the standings
-  var standings_sheet = sheet.getSheetByName(standings_sheet_label);
+  var standings_sheet = gs.getSheetByName(outputs.standings);
   outputPlayerStandings(standings_sheet, res.players, entrants, ratings);
 
   // Write out statistics
-  var statistics_sheet = sheet.getSheetByName(statistics_sheet_label);
+  var statistics_sheet = gs.getSheetByName(outputs.statistics);
   outputStatistics(statistics_sheet, res, entrants);
 
   // Write out the pairings
   var round_pairings = collectRoundPairings();
   console.log("round pairings:", round_pairings);
 
-  var pairing_sheet = sheet.getSheetByName(pairing_sheet_label);
-  var text_pairing_sheet = sheet.getSheetByName(text_pairing_sheet_label);
+  var pairing_sheet = gs.getSheetByName(outputs.pairings);
+  var text_pairing_sheet = gs.getSheetByName(outputs.text_pairings);
 
   // Clear pairing sheets
   pairing_sheet.clear();
@@ -1680,7 +1665,13 @@ function processSheet(
 }
 
 function calculateStandings() {
-  processSheet("Results", "Standings", "Pairings", "Text Pairings", "Stats");
+  var outputs = {
+    standings: "Standings",
+    pairings: "Pairings",
+    text_pairings: "Text Pairings",
+    statistics: "Stats"
+  }
+  processSheet(outputs);
 }
 
 // export {
