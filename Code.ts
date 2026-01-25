@@ -1460,7 +1460,7 @@ function _show_high_spread(g, entrants) {
 }
 
 function outputStatistics(statistics_sheet, res, entrants) {
-  results = res.results
+  var results = res.results
   results = [...results].filter((x) => x.loser != 'Bye');
   var no_ties = [...results].filter((x) => x.winner_score > x.loser_score);
   var high_game = [...results].sort((x, y) =>
@@ -1475,7 +1475,7 @@ function outputStatistics(statistics_sheet, res, entrants) {
   var low_spread = [...no_ties].sort((x, y) =>
     x.winner_score - x.loser_score - y.winner_score + y.loser_score);
   var out = [["Highest Wins", "Highest Losses", "Lowest Wins", "Lowest Losses"]]
-  for (i = 0; i < 10; i++) {
+  for (var i = 0; i < 10; i++) {
     out.push([
       _show_win(high_win[i]),
       _show_loss(high_loss[i]),
@@ -1487,7 +1487,7 @@ function outputStatistics(statistics_sheet, res, entrants) {
   out.push(["", "", "", ""]);
 
   out.push(["Highest Games", "Biggest Blowouts", "Nailbiters", "Ties"]);
-  for (i = 0; i < 10; i++) {
+  for (var i = 0; i < 10; i++) {
     out.push([
       _show_high_game(high_game[i]),
       _show_spread(high_spread[i], entrants),
