@@ -1578,6 +1578,43 @@ function runPairings(res, entrants, round_pairings, starts, diags) {
   return all_pairings;
 }
 
+function lastResultTimestamp() {
+  var gs = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = gs.getSheetByName("Results");
+  var row = sheet.getLastRow();
+  return sheet.getRange(row, 1).getValues()[0][0];
+}
+
+function outputPairingLog(sheet, all_pairings) {
+  var last_row = sheet.getLastRow();
+  // Write header if sheet is empty
+  if (last_row == 0) {
+    header = [["Timestamp", "Last Result", "Round", "Pairings"]];
+    var hdr_range = sheet.getRange(last_row + 1, 1, 1, header[0].length);
+    hdr_range.setValues(header);
+    hdr_range.setFontWeight("bold");
+    last_row += 1;
+  }
+  // Write current pairings
+  var outputRow = last_row + 2;
+  var outputCol = 1;
+  var now = new Date();
+  var ts = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+  var result_ts = lastResultTimestamp();
+  out = [];
+  var round = 0;
+  for (var pairings of all_pairings) {
+    var round_str = "Round " + (round + 1);
+    var pairing_strings = pairings.map(x => `${x.first.name} v. ${x.second.name}`);
+    var pairing_str = pairing_strings.join(" | ");
+    out.push([ts, result_ts, round_str, pairing_str]);
+    round = round + 1;
+  }
+  var out_range = sheet.getRange(outputRow, outputCol, out.length, out[0].length);
+  out_range.setValues(out);
+  sheet.getRange(outputRow, outputCol + 1, out.length, 1).setNumberFormat("M/dd/yyyy HH:mm:ss");
+}
+
 function outputDiags(diags_sheet, diags) {
   var out = [['Round', 'Status']];
   for (const [round, stat] of Object.entries(diags.round_status)) {
@@ -1659,6 +1696,10 @@ function processSheet(outputs) {
   }
   pairing_sheet.getDataRange().setFontFamily("Proxima Nova").setFontSize(13);
 
+  // Write audit trail
+  var log_pairing_sheet = getOrCreateSheet("PairingsLog");
+  outputPairingLog(log_pairing_sheet, all_pairings);
+
   // Write diagnostics
   var diags_sheet = getOrCreateSheet("Diagnostics");
   outputDiags(diags_sheet, diags);
@@ -1677,7 +1718,7 @@ function calculateStandings() {
 // export {
 //   makeEntrants, makeRoundPairings, makeResults, makeFixedPairings,
 //   pairingsAfterRound, standingsAfterRound, runPairings, formatPairings,
-//   Repeats, Starts, Diags
+//   Repeats, Starts, Diags, Results
 // };
 
 // Version: 2026-01-24
