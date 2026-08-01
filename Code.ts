@@ -1643,7 +1643,7 @@ function outputPairingLog(sheet, all_pairings) {
   var last_row = sheet.getLastRow();
   // Write header if sheet is empty
   if (last_row == 0) {
-    header = [["Timestamp", "Last Result", "Round", "Pairings"]];
+    var header = [["Timestamp", "Last Result", "Round", "Pairings"]];
     var hdr_range = sheet.getRange(last_row + 1, 1, 1, header[0].length);
     hdr_range.setValues(header);
     hdr_range.setFontWeight("bold");
@@ -1775,4 +1775,4 @@ function calculateStandings() {
 //   Repeats, Starts, Diags, Results
 // };
 
-// Version: 2026-01-24
+// Version: 2026-07-31

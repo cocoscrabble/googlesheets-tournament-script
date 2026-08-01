@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "_comment": "tsc still reports pre-existing strictness errors, so build uses ';' not '&&' - it emits anyway. Switch to '&&' once the migration is done and type errors should block a push.",
+    "build": "tsc; cp appsscript.json blossom.js build/",
+    "push": "npm run build && clasp push"
+  },
   "dependencies": {
     "@types/google-apps-script": "^2.0.8"
   }
