@@ -863,7 +863,7 @@ function pairQoth(standings, entrants, round) {
   var pairings = [];
   var n = standings.length;
   if (n % 4 == 2) {
-    last = n - 6
+    var last = n - 6
     for (var i = 0; i < last; i += 4) {
       pairings.push({ first: standings[i], second: standings[i + 2] })
       pairings.push({ first: standings[i + 1], second: standings[i + 3] })
@@ -1126,8 +1126,8 @@ function pairCharlottesville(entrants, round) {
   var rotated = r2.concat(r1);
   var pairings = [];
   for (var i = 0; i < g1.length; i += 1) {
-    p1 = g1[i] - 1;
-    p2 = rotated[i] - 1;
+    var p1 = g1[i] - 1;
+    var p2 = rotated[i] - 1;
     pairings.push({ first: entrants.seeding[p1], second: entrants.seeding[p2] });
   }
   return pairings
@@ -1655,7 +1655,7 @@ function outputPairingLog(sheet, all_pairings) {
   var now = new Date();
   var ts = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
   var result_ts = lastResultTimestamp();
-  out = [];
+  var out: any[] = [];
   var round = 0;
   for (var pairings of all_pairings) {
     var round_str = "Round " + (round + 1);
