@@ -974,9 +974,10 @@ function pairClusteredQuads(standings, pos) {
   return pairGroupsAtPosition(quads, pos);
 }
 
-function pairDistributedQuads(standings, pos) {
-  var quads = [];
-  var max = getLastQuadPosition(standings);
+function distributeQuads(standings, max) {
+  // Deal the top `max` players across max/4 quads, so that each quad gets one
+  // player from each quarter of the field.
+  var quads: any[] = [];
   var stride = max / 4;
   for (var i = 0; i < stride; i++) {
     quads[i] = [];
@@ -985,7 +986,42 @@ function pairDistributedQuads(standings, pos) {
     var quad = i % stride;
     quads[quad].push(standings[i]);
   }
-  maybeAddHex(quads, standings, max);
+  return quads;
+}
+
+function distributeQuadsWithHex(standings, max) {
+  // The distributed counterpart of maybeAddHex: rather than making the hex out
+  // of the bottom six players, we spread its members through the field the same
+  // way a quad's are. The standings are split into six bands - four of
+  // (stride + 1) players that every group draws from, and two single-player
+  // bands in mid-field that only the hex draws from.
+  //
+  // e.g. for 14 players (two quads and a hex) the bands are
+  //   [1 2 3] [4 5 6] [7] [8] [9 10 11] [12 13 14]
+  // giving quads of 1/4/9/12 and 2/5/10/13, and a hex of 3/6/7/8/11/14.
+  var stride = max / 4;
+  var groups: any[] = [];
+  for (var i = 0; i <= stride; i++) {
+    groups[i] = [];
+  }
+  const bands = [stride + 1, stride + 1, 1, 1, stride + 1, stride + 1];
+  var player = 0;
+  for (const band of bands) {
+    for (var i = 0; i < band; i++) {
+      // a full band feeds every group in turn, a single-player band only the hex
+      var group = (band == 1) ? stride : i;
+      groups[group].push(standings[player]);
+      player++;
+    }
+  }
+  return groups;
+}
+
+function pairDistributedQuads(standings, pos) {
+  var max = getLastQuadPosition(standings);
+  var quads = (max < standings.length)
+    ? distributeQuadsWithHex(standings, max)
+    : distributeQuads(standings, max);
   console.log("quads:", quads)
   console.log("standings:", standings)
   return pairGroupsAtPosition(quads, pos);
