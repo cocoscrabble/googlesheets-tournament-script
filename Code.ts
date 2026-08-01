@@ -159,6 +159,15 @@ class Repeats {
     var key = [name1, name2].sort();
     return this.matches[key] || 0;
   }
+
+  max() {
+    // The highest number of times any pair has met
+    var max = 0;
+    for (const key of Object.keys(this.matches)) {
+      max = Math.max(max, this.matches[key]);
+    }
+    return max;
+  }
 }
 
 class Starts {
@@ -1128,7 +1137,7 @@ function pairCharlottesville(entrants, round) {
 // Swiss pairing.
 
 function calculateScoreGroups(standings) {
-  var groups = []
+  var groups: any[] = []
   console.log("standings:", standings)
   for (var p of standings) {
     var k = p.wins
@@ -1152,11 +1161,10 @@ function calculateScoreGroups(standings) {
 }
 
 function promote(groups, i, j) {
-  var top = groups[j]
-  if (top === undefined) {
-    console.log("undef!")
-    console.log(groups)
-    console.log(j)
+  if (groups[j] === undefined) {
+    // We have run out of groups to promote players out of
+    throw new Error("swiss pairing failed: no group " + j + " to promote from, " +
+      "groups are " + JSON.stringify(groups.map(g => g.length)));
   }
   var fst = groups[j].shift();
   groups[i].push(fst)
@@ -1265,14 +1273,24 @@ function pairSwissHelper(players, repeats, entrants) {
   var candidates;
   var nrep = 1;
   var paired = [];
-  // Don't have too small a bottom group
-  if (groups.length > 1) {
-    while (groups[groups.length - 1].length < 6) {
-      mergeBottom(groups);
-      groups = groups.filter(e => e.length != 0);
-    }
+  // Don't have too small a bottom group. Stop once everything has been merged
+  // into a single group, otherwise mergeBottom has nothing left to merge and we
+  // spin forever (a field of fewer than six players never reaches the target).
+  while (groups.length > 1 && groups[groups.length - 1].length < 6) {
+    mergeBottom(groups);
+    groups = groups.filter(e => e.length != 0);
   }
+  // nrep is the limit on how many times a pair may already have met. Once it is
+  // past the highest repeat count in the field every pair is a candidate, so if
+  // we still can't pair the group there is nothing left to relax and retrying
+  // would loop forever - e.g. a group with an odd number of players can never
+  // be matched up no matter how many repeats we allow.
+  const max_reps = repeats.max();
   while (groups.length > 0) {
+    if (nrep > max_reps + 1) {
+      throw new Error("swiss pairing failed: cannot pair group of " +
+        groups[0].length + " players (" + groups[0].map(p => p.name).join(", ") + ")");
+    }
     dgroups = groups.map(g => g.map(p => [p.name, p.wins]));
     // console.log("groups:", dgroups)
     candidates = pairSwissTop(groups, repeats, nrep)
